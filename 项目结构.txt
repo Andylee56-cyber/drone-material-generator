@@ -1,0 +1,70 @@
+无人机视觉MLflow实验项目结构
+=====================================
+
+📁 mlflow_learning_project/
+├── 📄 main.py                    # 主实验程序 - 核心深度学习实验
+├── 📄 streamlit_app.py          # Web UI界面 - 交互式实验平台
+├── 📄 start_experiment.py        # 启动脚本 - 一键启动所有服务
+├── 📄 requirements.txt           # 依赖包列表 - 项目所需Python包
+├── 📄 PyCharm使用说明.md        # 详细使用说明 - PyCharm操作指南
+├── 📄 README.md                 # 项目说明 - 项目介绍和使用指南
+└── 📄 项目结构.txt              # 本文件 - 项目结构说明
+
+功能模块说明：
+=============
+
+🔬 实验核心 (main.py)
+├── DroneDataset - 无人机数据集类
+├── DroneVisionCNN - CNN模型架构
+├── DroneVisionExperiment - 实验管理类
+└── 主要功能：
+    ├── 生成合成无人机数据
+    ├── 数据预处理和增强
+    ├── 模型训练和验证
+    ├── MLflow实验跟踪
+    └── 可视化结果生成
+
+🌐 Web界面 (streamlit_app.py)
+├── 实验控制面板
+├── 历史实验分析
+├── 模型对比功能
+├── 实时可视化
+└── 交互式参数设置
+
+🚀 启动脚本 (start_experiment.py)
+├── 依赖检查
+├── 服务启动管理
+├── 浏览器自动打开
+└── 多服务协调
+
+📚 文档系统
+├── README.md - 项目总览
+├── PyCharm使用说明.md - 详细操作指南
+└── 项目结构.txt - 结构说明
+
+技术栈：
+=======
+- 深度学习：PyTorch, TorchVision
+- 实验跟踪：MLflow
+- Web界面：Streamlit
+- 可视化：Matplotlib, Plotly, Seaborn
+- 数据处理：NumPy, Pandas, OpenCV
+- 图像处理：PIL, Albumentations
+
+使用流程：
+=========
+1. 安装依赖：pip install -r requirements.txt
+2. 运行实验：python start_experiment.py
+3. 选择功能：运行实验/启动Web界面/启动MLflow UI
+4. 查看结果：浏览器自动打开相关界面
+5. 分析数据：通过Web界面或MLflow UI查看结果
+
+实验功能：
+=========
+✅ 自动生成无人机图像数据
+✅ 训练CNN分类模型
+✅ MLflow实验跟踪
+✅ Web界面交互
+✅ 可视化分析
+✅ 模型性能评估
+✅ 实验对比分析

@@ -1,0 +1,65 @@
+{
+  "generation_time": "2025-11-17T17:27:19.693975",
+  "original_image": "test_images\\test_input.jpg",
+  "output_dir": "test_generated",
+  "num_requested": 8,
+  "num_generated": 8,
+  "generated_images": [
+    {
+      "index": 1,
+      "original_path": "test_images\\test_input.jpg",
+      "generated_path": "test_generated\\generated_001_flip_vertical.jpg",
+      "transformation": "flip_vertical",
+      "filename": "generated_001_flip_vertical.jpg"
+    },
+    {
+      "index": 2,
+      "original_path": "test_images\\test_input.jpg",
+      "generated_path": "test_generated\\generated_002_sharp.jpg",
+      "transformation": "sharp",
+      "filename": "generated_002_sharp.jpg"
+    },
+    {
+      "index": 3,
+      "original_path": "test_images\\test_input.jpg",
+      "generated_path": "test_generated\\generated_003_contrast_up.jpg",
+      "transformation": "contrast_up",
+      "filename": "generated_003_contrast_up.jpg"
+    },
+    {
+      "index": 4,
+      "original_path": "test_images\\test_input.jpg",
+      "generated_path": "test_generated\\generated_004_flip_horizontal.jpg",
+      "transformation": "flip_horizontal",
+      "filename": "generated_004_flip_horizontal.jpg"
+    },
+    {
+      "index": 5,
+      "original_path": "test_images\\test_input.jpg",
+      "generated_path": "test_generated\\generated_005_zoom_out.jpg",
+      "transformation": "zoom_out",
+      "filename": "generated_005_zoom_out.jpg"
+    },
+    {
+      "index": 6,
+      "original_path": "test_images\\test_input.jpg",
+      "generated_path": "test_generated\\generated_006_saturation_up.jpg",
+      "transformation": "saturation_up",
+      "filename": "generated_006_saturation_up.jpg"
+    },
+    {
+      "index": 7,
+      "original_path": "test_images\\test_input.jpg",
+      "generated_path": "test_generated\\generated_007_saturation_down.jpg",
+      "transformation": "saturation_down",
+      "filename": "generated_007_saturation_down.jpg"
+    },
+    {
+      "index": 8,
+      "original_path": "test_images\\test_input.jpg",
+      "generated_path": "test_generated\\generated_008_noise.jpg",
+      "transformation": "noise",
+      "filename": "generated_008_noise.jpg"
+    }
+  ]
+}

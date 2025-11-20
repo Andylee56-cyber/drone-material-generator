@@ -1,0 +1,135 @@
+{
+  "generation_time": "2025-11-18T09:51:51.851571",
+  "original_image": "temp_uploads\\456x255a33a1180.jpg",
+  "output_dir": "generated_materials\\generation_1763430711",
+  "num_requested": 18,
+  "num_generated": 18,
+  "generated_images": [
+    {
+      "index": 1,
+      "original_path": "temp_uploads\\456x255a33a1180.jpg",
+      "generated_path": "generated_materials\\generation_1763430711\\generated_001_perspective.jpg",
+      "transformation": "perspective",
+      "filename": "generated_001_perspective.jpg"
+    },
+    {
+      "index": 2,
+      "original_path": "temp_uploads\\456x255a33a1180.jpg",
+      "generated_path": "generated_materials\\generation_1763430711\\generated_002_crop_corner.jpg",
+      "transformation": "crop_corner",
+      "filename": "generated_002_crop_corner.jpg"
+    },
+    {
+      "index": 3,
+      "original_path": "temp_uploads\\456x255a33a1180.jpg",
+      "generated_path": "generated_materials\\generation_1763430711\\generated_003_saturation_up.jpg",
+      "transformation": "saturation_up",
+      "filename": "generated_003_saturation_up.jpg"
+    },
+    {
+      "index": 4,
+      "original_path": "temp_uploads\\456x255a33a1180.jpg",
+      "generated_path": "generated_materials\\generation_1763430711\\generated_004_brightness_up.jpg",
+      "transformation": "brightness_up",
+      "filename": "generated_004_brightness_up.jpg"
+    },
+    {
+      "index": 5,
+      "original_path": "temp_uploads\\456x255a33a1180.jpg",
+      "generated_path": "generated_materials\\generation_1763430711\\generated_005_contrast_up.jpg",
+      "transformation": "contrast_up",
+      "filename": "generated_005_contrast_up.jpg"
+    },
+    {
+      "index": 6,
+      "original_path": "temp_uploads\\456x255a33a1180.jpg",
+      "generated_path": "generated_materials\\generation_1763430711\\generated_006_zoom_in.jpg",
+      "transformation": "zoom_in",
+      "filename": "generated_006_zoom_in.jpg"
+    },
+    {
+      "index": 7,
+      "original_path": "temp_uploads\\456x255a33a1180.jpg",
+      "generated_path": "generated_materials\\generation_1763430711\\generated_007_rotate_30.jpg",
+      "transformation": "rotate_30",
+      "filename": "generated_007_rotate_30.jpg"
+    },
+    {
+      "index": 8,
+      "original_path": "temp_uploads\\456x255a33a1180.jpg",
+      "generated_path": "generated_materials\\generation_1763430711\\generated_008_flip_horizontal.jpg",
+      "transformation": "flip_horizontal",
+      "filename": "generated_008_flip_horizontal.jpg"
+    },
+    {
+      "index": 9,
+      "original_path": "temp_uploads\\456x255a33a1180.jpg",
+      "generated_path": "generated_materials\\generation_1763430711\\generated_009_original.jpg",
+      "transformation": "original",
+      "filename": "generated_009_original.jpg"
+    },
+    {
+      "index": 10,
+      "original_path": "temp_uploads\\456x255a33a1180.jpg",
+      "generated_path": "generated_materials\\generation_1763430711\\generated_010_contrast_down.jpg",
+      "transformation": "contrast_down",
+      "filename": "generated_010_contrast_down.jpg"
+    },
+    {
+      "index": 11,
+      "original_path": "temp_uploads\\456x255a33a1180.jpg",
+      "generated_path": "generated_materials\\generation_1763430711\\generated_011_zoom_out.jpg",
+      "transformation": "zoom_out",
+      "filename": "generated_011_zoom_out.jpg"
+    },
+    {
+      "index": 12,
+      "original_path": "temp_uploads\\456x255a33a1180.jpg",
+      "generated_path": "generated_materials\\generation_1763430711\\generated_012_saturation_down.jpg",
+      "transformation": "saturation_down",
+      "filename": "generated_012_saturation_down.jpg"
+    },
+    {
+      "index": 13,
+      "original_path": "temp_uploads\\456x255a33a1180.jpg",
+      "generated_path": "generated_materials\\generation_1763430711\\generated_013_brightness_down.jpg",
+      "transformation": "brightness_down",
+      "filename": "generated_013_brightness_down.jpg"
+    },
+    {
+      "index": 14,
+      "original_path": "temp_uploads\\456x255a33a1180.jpg",
+      "generated_path": "generated_materials\\generation_1763430711\\generated_014_flip_vertical.jpg",
+      "transformation": "flip_vertical",
+      "filename": "generated_014_flip_vertical.jpg"
+    },
+    {
+      "index": 15,
+      "original_path": "temp_uploads\\456x255a33a1180.jpg",
+      "generated_path": "generated_materials\\generation_1763430711\\generated_015_crop_center.jpg",
+      "transformation": "crop_center",
+      "filename": "generated_015_crop_center.jpg"
+    },
+    {
+      "index": 16,
+      "original_path": "temp_uploads\\456x255a33a1180.jpg",
+      "generated_path": "generated_materials\\generation_1763430711\\generated_016_blur_slight.jpg",
+      "transformation": "blur_slight",
+      "filename": "generated_016_blur_slight.jpg"
+    },
+    {
+      "index": 17,
+      "original_path": "temp_uploads\\456x255a33a1180.jpg",
+      "generated_path": "generated_materials\\generation_1763430711\\generated_017_noise.jpg",
+      "transformation": "noise",
+      "filename": "generated_017_noise.jpg"
+    },
+    {
+      "index": 18,
+      "original_path": "temp_uploads\\456x255a33a1180.jpg",
+      "generated_path": "generated_materials\\generation_1763430711\\generated_018_sharp.jpg",
+      "transformation": "sharp",
+      "filename": "generated_018_sharp.jpg"
+    }
+  ]
+}

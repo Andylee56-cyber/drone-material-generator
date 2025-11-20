@@ -1,0 +1,15 @@
+﻿__pycache__/
+*.py[cod]
+*.pt
+*.pth
+*.onnx
+*.h5
+*.pkl
+data/
+temp_*/
+*.log
+.env
+.streamlit/secrets.toml
+dist/
+build/
+*.egg-info/

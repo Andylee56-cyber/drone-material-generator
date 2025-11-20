@@ -1,0 +1,107 @@
+{
+  "generation_time": "2025-11-17T17:50:37.558946",
+  "original_image": "temp_uploads\\7010.jpg_wh860.jpg",
+  "output_dir": "generated_materials\\generation_1763373037",
+  "num_requested": 14,
+  "num_generated": 14,
+  "generated_images": [
+    {
+      "index": 1,
+      "original_path": "temp_uploads\\7010.jpg_wh860.jpg",
+      "generated_path": "generated_materials\\generation_1763373037\\generated_001_brightness_down.jpg",
+      "transformation": "brightness_down",
+      "filename": "generated_001_brightness_down.jpg"
+    },
+    {
+      "index": 2,
+      "original_path": "temp_uploads\\7010.jpg_wh860.jpg",
+      "generated_path": "generated_materials\\generation_1763373037\\generated_002_blur_slight.jpg",
+      "transformation": "blur_slight",
+      "filename": "generated_002_blur_slight.jpg"
+    },
+    {
+      "index": 3,
+      "original_path": "temp_uploads\\7010.jpg_wh860.jpg",
+      "generated_path": "generated_materials\\generation_1763373037\\generated_003_flip_horizontal.jpg",
+      "transformation": "flip_horizontal",
+      "filename": "generated_003_flip_horizontal.jpg"
+    },
+    {
+      "index": 4,
+      "original_path": "temp_uploads\\7010.jpg_wh860.jpg",
+      "generated_path": "generated_materials\\generation_1763373037\\generated_004_saturation_down.jpg",
+      "transformation": "saturation_down",
+      "filename": "generated_004_saturation_down.jpg"
+    },
+    {
+      "index": 5,
+      "original_path": "temp_uploads\\7010.jpg_wh860.jpg",
+      "generated_path": "generated_materials\\generation_1763373037\\generated_005_crop_corner.jpg",
+      "transformation": "crop_corner",
+      "filename": "generated_005_crop_corner.jpg"
+    },
+    {
+      "index": 6,
+      "original_path": "temp_uploads\\7010.jpg_wh860.jpg",
+      "generated_path": "generated_materials\\generation_1763373037\\generated_006_contrast_up.jpg",
+      "transformation": "contrast_up",
+      "filename": "generated_006_contrast_up.jpg"
+    },
+    {
+      "index": 7,
+      "original_path": "temp_uploads\\7010.jpg_wh860.jpg",
+      "generated_path": "generated_materials\\generation_1763373037\\generated_007_zoom_in.jpg",
+      "transformation": "zoom_in",
+      "filename": "generated_007_zoom_in.jpg"
+    },
+    {
+      "index": 8,
+      "original_path": "temp_uploads\\7010.jpg_wh860.jpg",
+      "generated_path": "generated_materials\\generation_1763373037\\generated_008_noise.jpg",
+      "transformation": "noise",
+      "filename": "generated_008_noise.jpg"
+    },
+    {
+      "index": 9,
+      "original_path": "temp_uploads\\7010.jpg_wh860.jpg",
+      "generated_path": "generated_materials\\generation_1763373037\\generated_009_crop_center.jpg",
+      "transformation": "crop_center",
+      "filename": "generated_009_crop_center.jpg"
+    },
+    {
+      "index": 10,
+      "original_path": "temp_uploads\\7010.jpg_wh860.jpg",
+      "generated_path": "generated_materials\\generation_1763373037\\generated_010_contrast_down.jpg",
+      "transformation": "contrast_down",
+      "filename": "generated_010_contrast_down.jpg"
+    },
+    {
+      "index": 11,
+      "original_path": "temp_uploads\\7010.jpg_wh860.jpg",
+      "generated_path": "generated_materials\\generation_1763373037\\generated_011_sharp.jpg",
+      "transformation": "sharp",
+      "filename": "generated_011_sharp.jpg"
+    },
+    {
+      "index": 12,
+      "original_path": "temp_uploads\\7010.jpg_wh860.jpg",
+      "generated_path": "generated_materials\\generation_1763373037\\generated_012_saturation_up.jpg",
+      "transformation": "saturation_up",
+      "filename": "generated_012_saturation_up.jpg"
+    },
+    {
+      "index": 13,
+      "original_path": "temp_uploads\\7010.jpg_wh860.jpg",
+      "generated_path": "generated_materials\\generation_1763373037\\generated_013_rotate_-15.jpg",
+      "transformation": "rotate_-15",
+      "filename": "generated_013_rotate_-15.jpg"
+    },
+    {
+      "index": 14,
+      "original_path": "temp_uploads\\7010.jpg_wh860.jpg",
+      "generated_path": "generated_materials\\generation_1763373037\\generated_014_rotate_15.jpg",
+      "transformation": "rotate_15",
+      "filename": "generated_014_rotate_15.jpg"
+    }
+  ]
+}
