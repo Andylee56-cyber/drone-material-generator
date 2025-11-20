@@ -21,7 +21,7 @@ from agents.image_quality_analyzer import ImageQualityAnalyzer
 from agents.material_generator_agent import MaterialGeneratorAgent
 from agents.material_enhancement_trainer import MaterialEnhancementTrainer
 
-st.set_page_config(page_title="无人机素材生成系统", page_icon="🚁", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="无人机素材生成系统", page_icon="🚁", layout="wide", initial_sidebar_state="expanded")
 
 
 # ========== 移动端优化 ==========
@@ -160,9 +160,8 @@ if 'enhancement_results' not in st.session_state:
 
 with st.sidebar:
     st.header("⚙️ 系统配置")
-    num_generations = st.slider("生成图片数量", 4, 100, 18, 1)
     auto_analyze = st.checkbox("生成后自动分析", value=True)
-    draw_detection_boxes = st.checkbox("绘制检测框", value=True)
+    # 图片数量选择器已移到主界面，确保可见
     
     st.markdown("---")
     st.markdown("### 🎯 增强训练设置")
@@ -172,11 +171,8 @@ with st.sidebar:
         max_iterations = st.slider("最大迭代次数", 5, 20, 10, 1)
     
     st.markdown("---")
-    st.markdown("### 💾 保存设置")
-    save_enabled = st.checkbox("启用保存功能", value=True)
-    if save_enabled:
-        save_folder = st.text_input("保存文件夹路径", value="D:\\无人机生成素材")
-        save_name = st.text_input("保存文件夹名称（可选）", value="")
+    st.markdown("### 💾 下载设置")
+    st.info("💡 生成的素材和增强后的图片可以通过下载按钮保存到手机本地")
     
     st.markdown("---")
     st.markdown("### 📊 8个分析维度（点击查看详情）")
@@ -210,6 +206,14 @@ with st.sidebar:
                     st.dataframe(pd.DataFrame(individual_scores), use_container_width=True, hide_index=True)
 
 st.header("📸 上传图片并生成多角度素材")
+
+# 在主界面显示图片数量选择器（确保可见）
+col_config1, col_config2 = st.columns(2)
+with col_config1:
+    num_generations = st.slider("生成图片数量", 4, 100, 18, 1, key="main_num_generations")
+with col_config2:
+    draw_detection_boxes = st.checkbox("绘制检测框", value=True, key="main_draw_boxes")
+
 uploaded_file = st.file_uploader("上传一张无人机图片", type=['jpg','jpeg','png','bmp'])
 
 if uploaded_file is not None:
@@ -229,20 +233,14 @@ if uploaded_file is not None:
         if st.button("🚀 生成多角度素材并分析", type="primary", use_container_width=True):
             with st.spinner("正在生成多角度素材，请稍候..."):
                 try:
-                    # 更新生成器配置
-                    if draw_detection_boxes != st.session_state.generator.draw_boxes:
-                        st.session_state.generator = ImageMultiAngleGenerator(draw_boxes=draw_detection_boxes)
+                    # 更新生成器配置（确保检测框功能启用）
+                    if not draw_detection_boxes:
+                        st.warning("⚠️ 检测框功能已关闭，生成的图片将不包含检测框")
+                    # 强制重新初始化生成器，确保检测框功能正确
+                    st.session_state.generator = ImageMultiAngleGenerator(draw_boxes=draw_detection_boxes)
                     
-                    # 确定输出目录
-                    if save_enabled and save_folder:
-                        base_dir = Path(save_folder)
-                        base_dir.mkdir(parents=True, exist_ok=True)
-                        if save_name:
-                            output_dir = base_dir / save_name
-                        else:
-                            output_dir = base_dir / f"generation_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-                    else:
-                        output_dir = Path("generated_materials") / f"generation_{int(time.time())}"
+                    # 确定输出目录（使用临时目录，后续提供下载）
+                    output_dir = Path("temp_generated") / f"generation_{int(time.time())}"
                     
                     output_dir.mkdir(parents=True, exist_ok=True)
                     
@@ -273,8 +271,24 @@ if uploaded_file is not None:
                         status_text.text("✅ 生成完成！")
 
                     st.success(f"✅ 成功生成 {result['num_generated']} 张多角度素材！")
-                    if save_enabled:
-                        st.info(f"💾 素材已保存至: {output_dir}")
+                    
+                    # 提供下载功能
+                    st.markdown("### 📥 下载生成的素材")
+                    import zipfile
+                    import io
+                    zip_buffer = io.BytesIO()
+                    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+                        for img_path in result['generated_files']:
+                            if Path(img_path).exists():
+                                zip_file.write(img_path, Path(img_path).name)
+                    zip_buffer.seek(0)
+                    st.download_button(
+                        label="📥 下载所有生成的素材（ZIP）",
+                        data=zip_buffer.getvalue(),
+                        file_name=f"generated_materials_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip",
+                        mime="application/zip",
+                        use_container_width=True
+                    )
                 except Exception as e:
                     st.error(f"❌ 处理出错: {e}")
                     import traceback
@@ -392,13 +406,8 @@ if uploaded_file is not None:
                 if st.button("🎯 开始增强训练", type="primary", use_container_width=True):
                     with st.spinner("正在进行增强训练，请稍候..."):
                         try:
-                            # 确定增强输出目录
-                            if save_enabled and save_folder:
-                                base_dir = Path(save_folder)
-                                base_dir.mkdir(parents=True, exist_ok=True)
-                                enhancement_dir = base_dir / f"enhanced_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-                            else:
-                                enhancement_dir = Path("enhanced_materials") / f"enhancement_{int(time.time())}"
+                            # 确定增强输出目录（使用临时目录，后续提供下载）
+                            enhancement_dir = Path("temp_enhanced") / f"enhancement_{int(time.time())}"
                             
                             enhancement_dir.mkdir(parents=True, exist_ok=True)
                             
@@ -424,8 +433,30 @@ if uploaded_file is not None:
                             st.info(f"📈 平均提升幅度: {enhancement_result.get('average_improvement', 0):.2f}分")
                             st.info(f"⭐ 优秀({enhancement_result.get('excellent_count', 0)}) | 良好({enhancement_result.get('good_count', 0)}) | 一般({enhancement_result.get('fair_count', 0)}) | 较差({enhancement_result.get('poor_count', 0)})")
                             
-                            if save_enabled:
-                                st.info(f"💾 增强素材已保存至: {enhancement_dir}")
+                            # 提供增强素材下载功能
+                            st.markdown("### 📥 下载增强后的素材")
+                            import zipfile
+                            import io
+                            zip_buffer = io.BytesIO()
+                            enhanced_files = []
+                            for result_item in enhancement_result.get('results', []):
+                                if result_item.get('success', False) and 'final_image_path' in result_item:
+                                    enhanced_path = result_item['final_image_path']
+                                    if Path(enhanced_path).exists():
+                                        enhanced_files.append(enhanced_path)
+                            
+                            if enhanced_files:
+                                with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+                                    for img_path in enhanced_files:
+                                        zip_file.write(img_path, Path(img_path).name)
+                                zip_buffer.seek(0)
+                                st.download_button(
+                                    label="📥 下载所有增强素材（ZIP）",
+                                    data=zip_buffer.getvalue(),
+                                    file_name=f"enhanced_materials_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip",
+                                    mime="application/zip",
+                                    use_container_width=True
+                                )
                         except Exception as e:
                             st.error(f"❌ 增强训练出错: {e}")
                             import traceback
