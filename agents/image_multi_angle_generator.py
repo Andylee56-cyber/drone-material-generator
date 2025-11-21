@@ -7,11 +7,23 @@ import numpy as np
 try:
     import cv2
 except ImportError:
-    raise ImportError(
-        "OpenCV (cv2) is not installed. "
-        "This is required for the drone vision system. "
-        "Please ensure 'opencv-python-headless==4.8.1.78' is in requirements.txt and Streamlit Cloud has installed it correctly."
-    )
+    try:
+        import cv2.cv2 as cv2
+    except ImportError:
+        try:
+            import sys
+            import importlib.util
+            # Try to find cv2 in site-packages
+            spec = importlib.util.find_spec("cv2")
+            if spec is None:
+                raise ImportError("cv2 module not found")
+            import cv2
+        except Exception:
+            raise ImportError(
+                "OpenCV (cv2) is not installed. "
+                "Please ensure 'opencv-python-headless>=4.8.0' is in requirements.txt. "
+                "If the error persists, try: pip install opencv-python-headless"
+            )
 from PIL import Image, ImageDraw, ImageFont
 from pathlib import Path
 from typing import List, Dict, Optional
