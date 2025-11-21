@@ -8,10 +8,11 @@ import numpy as np
 try:
     import cv2
 except ImportError:
-    try:
-        import cv2.cv2 as cv2
-    except ImportError:
-        raise ImportError("OpenCV is not installed. Please install opencv-python-headless: pip install opencv-python-headless")
+    raise ImportError(
+        "OpenCV (cv2) is not installed. "
+        "This is required for the drone vision system. "
+        "Please ensure 'opencv-python-headless==4.8.1.78' is in requirements.txt and Streamlit Cloud has installed it correctly."
+    )
 from PIL import Image
 import torch
 from pathlib import Path
