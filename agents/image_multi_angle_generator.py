@@ -4,7 +4,13 @@
 """
 
 import numpy as np
-import cv2
+try:
+    import cv2
+except ImportError:
+    try:
+        import cv2.cv2 as cv2
+    except ImportError:
+        raise ImportError("OpenCV is not installed. Please install opencv-python-headless: pip install opencv-python-headless")
 from PIL import Image, ImageDraw, ImageFont
 from pathlib import Path
 from typing import List, Dict, Optional
