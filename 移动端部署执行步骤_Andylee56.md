@@ -221,7 +221,7 @@ Write-Host "首次推送时会提示输入用户名和token" -ForegroundColor Ye
 ```
 
 ---
-
+https://github.com/settings/tokens
 ## 📤 第四步：初始化Git并推送到GitHub
 
 ```powershell
@@ -329,6 +329,7 @@ Write-Host "========================================" -ForegroundColor Green
 Write-Host ""
 Read-Host "部署完成后，按回车键继续"
 ```
+https://share.streamlit.io
 
 ---
 

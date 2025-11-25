@@ -1,0 +1,1318 @@
+{
+  "generation_time": "2025-11-24T17:07:34.319883",
+  "original_image": "temp_uploads\\0000008_02499_d_0000041.jpg",
+  "output_dir": "temp_generated\\generation_1763975253",
+  "num_requested": 18,
+  "num_generated": 18,
+  "generated_images": [
+    {
+      "index": 1,
+      "original_path": "temp_uploads\\0000008_02499_d_0000041.jpg",
+      "generated_path": "temp_generated\\generation_1763975253\\generated_001_original.jpg",
+      "transformation": "original",
+      "filename": "generated_001_original.jpg",
+      "detections": [
+        {
+          "class_id": 2,
+          "class_name": "car",
+          "confidence": 0.7959097623825073,
+          "bbox": [
+            1107,
+            76,
+            1206,
+            123
+          ]
+        },
+        {
+          "class_id": 2,
+          "class_name": "car",
+          "confidence": 0.7622427940368652,
+          "bbox": [
+            1203,
+            139,
+            1321,
+            196
+          ]
+        },
+        {
+          "class_id": 2,
+          "class_name": "car",
+          "confidence": 0.674429178237915,
+          "bbox": [
+            1061,
+            33,
+            1144,
+            74
+          ]
+        },
+        {
+          "class_id": 7,
+          "class_name": "truck",
+          "confidence": 0.6407026052474976,
+          "bbox": [
+            471,
+            412,
+            811,
+            600
+          ]
+        },
+        {
+          "class_id": 2,
+          "class_name": "car",
+          "confidence": 0.5540663599967957,
+          "bbox": [
+            1308,
+            235,
+            1359,
+            298
+          ]
+        },
+        {
+          "class_id": 7,
+          "class_name": "truck",
+          "confidence": 0.5457406640052795,
+          "bbox": [
+            420,
+            294,
+            844,
+            493
+          ]
+        },
+        {
+          "class_id": 2,
+          "class_name": "car",
+          "confidence": 0.543709933757782,
+          "bbox": [
+            1027,
+            4,
+            1115,
+            46
+          ]
+        },
+        {
+          "class_id": 2,
+          "class_name": "car",
+          "confidence": 0.322642058134079,
+          "bbox": [
+            1340,
+            275,
+            1359,
+            366
+          ]
+        },
+        {
+          "class_id": 2,
+          "class_name": "car",
+          "confidence": 0.2725166082382202,
+          "bbox": [
+            1157,
+            100,
+            1241,
+            157
+          ]
+        },
+        {
+          "class_id": 7,
+          "class_name": "truck",
+          "confidence": 0.2686975598335266,
+          "bbox": [
+            402,
+            30,
+            844,
+            491
+          ]
+        }
+      ]
+    },
+    {
+      "index": 2,
+      "original_path": "temp_uploads\\0000008_02499_d_0000041.jpg",
+      "generated_path": "temp_generated\\generation_1763975253\\generated_002_diagonal_up.jpg",
+      "transformation": "diagonal_up",
+      "filename": "generated_002_diagonal_up.jpg",
+      "detections": [
+        {
+          "class_id": 2,
+          "class_name": "car",
+          "confidence": 0.6958041191101074,
+          "bbox": [
+            867,
+            54,
+            933,
+            90
+          ]
+        },
+        {
+          "class_id": 2,
+          "class_name": "car",
+          "confidence": 0.6771417260169983,
+          "bbox": [
+            1022,
+            123,
+            1117,
+            171
+          ]
+        },
+        {
+          "class_id": 2,
+          "class_name": "car",
+          "confidence": 0.6521360278129578,
+          "bbox": [
+            920,
+            84,
+            1001,
+            122
+          ]
+        },
+        {
+          "class_id": 2,
+          "class_name": "car",
+          "confidence": 0.5503841042518616,
+          "bbox": [
+            831,
+            37,
+            902,
+            73
+          ]
+        },
+        {
+          "class_id": 2,
+          "class_name": "car",
+          "confidence": 0.26595231890678406,
+          "bbox": [
+            974,
+            109,
+            1035,
+            145
+          ]
+        }
+      ]
+    },
+    {
+      "index": 3,
+      "original_path": "temp_uploads\\0000008_02499_d_0000041.jpg",
+      "generated_path": "temp_generated\\generation_1763975253\\generated_003_panoramic_wide.jpg",
+      "transformation": "panoramic_wide",
+      "filename": "generated_003_panoramic_wide.jpg",
+      "detections": [
+        {
+          "class_id": 2,
+          "class_name": "car",
+          "confidence": 0.49857640266418457,
+          "bbox": [
+            1202,
+            211,
+            1319,
+            252
+          ]
+        },
+        {
+          "class_id": 7,
+          "class_name": "truck",
+          "confidence": 0.38517317175865173,
+          "bbox": [
+            419,
+            319,
+            819,
+            530
+          ]
+        },
+        {
+          "class_id": 7,
+          "class_name": "truck",
+          "confidence": 0.32932770252227783,
+          "bbox": [
+            405,
+            314,
+            818,
+            459
+          ]
+        },
+        {
+          "class_id": 2,
+          "class_name": "car",
+          "confidence": 0.3270530104637146,
+          "bbox": [
+            1024,
+            117,
+            1129,
+            158
+          ]
+        },
+        {
+          "class_id": 2,
+          "class_name": "car",
+          "confidence": 0.3091764748096466,
+          "bbox": [
+            1026,
+            117,
+            1118,
+            149
+          ]
+        },
+        {
+          "class_id": 7,
+          "class_name": "truck",
+          "confidence": 0.25126320123672485,
+          "bbox": [
+            424,
+            394,
+            817,
+            535
+          ]
+        }
+      ]
+    },
+    {
+      "index": 4,
+      "original_path": "temp_uploads\\0000008_02499_d_0000041.jpg",
+      "generated_path": "temp_generated\\generation_1763975253\\generated_004_low_angle_30.jpg",
+      "transformation": "low_angle_30",
+      "filename": "generated_004_low_angle_30.jpg",
+      "detections": [
+        {
+          "class_id": 2,
+          "class_name": "car",
+          "confidence": 0.6069647073745728,
+          "bbox": [
+            1109,
+            311,
+            1206,
+            347
+          ]
+        },
+        {
+          "class_id": 28,
+          "class_name": "suitcase",
+          "confidence": 0.2955208718776703,
+          "bbox": [
+            516,
+            261,
+            670,
+            336
+          ]
+        },
+        {
+          "class_id": 7,
+          "class_name": "truck",
+          "confidence": 0.2871403694152832,
+          "bbox": [
+            497,
+            484,
+            790,
+            600
+          ]
+        }
+      ]
+    },
+    {
+      "index": 5,
+      "original_path": "temp_uploads\\0000008_02499_d_0000041.jpg",
+      "generated_path": "temp_generated\\generation_1763975253\\generated_005_tilt_right.jpg",
+      "transformation": "tilt_right",
+      "filename": "generated_005_tilt_right.jpg",
+      "detections": [
+        {
+          "class_id": 7,
+          "class_name": "truck",
+          "confidence": 0.6763957738876343,
+          "bbox": [
+            375,
+            86,
+            753,
+            602
+          ]
+        },
+        {
+          "class_id": 2,
+          "class_name": "car",
+          "confidence": 0.672676146030426,
+          "bbox": [
+            1004,
+            11,
+            1111,
+            71
+          ]
+        },
+        {
+          "class_id": 2,
+          "class_name": "car",
+          "confidence": 0.28776291012763977,
+          "bbox": [
+            1122,
+            45,
+            1357,
+            135
+          ]
+        }
+      ]
+    },
+    {
+      "index": 6,
+      "original_path": "temp_uploads\\0000008_02499_d_0000041.jpg",
+      "generated_path": "temp_generated\\generation_1763975253\\generated_006_top_down_60.jpg",
+      "transformation": "top_down_60",
+      "filename": "generated_006_top_down_60.jpg",
+      "detections": [
+        {
+          "class_id": 2,
+          "class_name": "car",
+          "confidence": 0.6433444023132324,
+          "bbox": [
+            986,
+            94,
+            1051,
+            127
+          ]
+        },
+        {
+          "class_id": 2,
+          "class_name": "car",
+          "confidence": 0.6331385374069214,
+          "bbox": [
+            1065,
+            141,
+            1153,
+            183
+          ]
+        },
+        {
+          "class_id": 2,
+          "class_name": "car",
+          "confidence": 0.5344274044036865,
+          "bbox": [
+            952,
+            61,
+            1007,
+            90
+          ]
+        },
+        {
+          "class_id": 2,
+          "class_name": "car",
+          "confidence": 0.4883100390434265,
+          "bbox": [
+            924,
+            42,
+            984,
+            71
+          ]
+        },
+        {
+          "class_id": 7,
+          "class_name": "truck",
+          "confidence": 0.4308043122291565,
+          "bbox": [
+            475,
+            253,
+            796,
+            545
+          ]
+        },
+        {
+          "class_id": 7,
+          "class_name": "truck",
+          "confidence": 0.41438451409339905,
+          "bbox": [
+            491,
+            362,
+            792,
+            546
+          ]
+        }
+      ]
+    },
+    {
+      "index": 7,
+      "original_path": "temp_uploads\\0000008_02499_d_0000041.jpg",
+      "generated_path": "temp_generated\\generation_1763975253\\generated_007_worm_eye.jpg",
+      "transformation": "worm_eye",
+      "filename": "generated_007_worm_eye.jpg",
+      "detections": [
+        {
+          "class_id": 7,
+          "class_name": "truck",
+          "confidence": 0.47543880343437195,
+          "bbox": [
+            466,
+            386,
+            798,
+            635
+          ]
+        }
+      ]
+    },
+    {
+      "index": 8,
+      "original_path": "temp_uploads\\0000008_02499_d_0000041.jpg",
+      "generated_path": "temp_generated\\generation_1763975253\\generated_008_diagonal_down.jpg",
+      "transformation": "diagonal_down",
+      "filename": "generated_008_diagonal_down.jpg",
+      "detections": [
+        {
+          "class_id": 2,
+          "class_name": "car",
+          "confidence": 0.7073904275894165,
+          "bbox": [
+            1172,
+            252,
+            1269,
+            297
+          ]
+        },
+        {
+          "class_id": 2,
+          "class_name": "car",
+          "confidence": 0.6251675486564636,
+          "bbox": [
+            1118,
+            190,
+            1206,
+            225
+          ]
+        },
+        {
+          "class_id": 2,
+          "class_name": "car",
+          "confidence": 0.5982152223587036,
+          "bbox": [
+            1098,
+            145,
+            1168,
+            182
+          ]
+        },
+        {
+          "class_id": 2,
+          "class_name": "car",
+          "confidence": 0.5615372061729431,
+          "bbox": [
+            1093,
+            130,
+            1167,
+            182
+          ]
+        },
+        {
+          "class_id": 2,
+          "class_name": "car",
+          "confidence": 0.3601546883583069,
+          "bbox": [
+            1077,
+            123,
+            1164,
+            161
+          ]
+        },
+        {
+          "class_id": 7,
+          "class_name": "truck",
+          "confidence": 0.33713459968566895,
+          "bbox": [
+            452,
+            96,
+            810,
+            538
+          ]
+        },
+        {
+          "class_id": 7,
+          "class_name": "truck",
+          "confidence": 0.29303646087646484,
+          "bbox": [
+            454,
+            313,
+            785,
+            539
+          ]
+        },
+        {
+          "class_id": 2,
+          "class_name": "car",
+          "confidence": 0.29177501797676086,
+          "bbox": [
+            1073,
+            123,
+            1165,
+            176
+          ]
+        }
+      ]
+    },
+    {
+      "index": 9,
+      "original_path": "temp_uploads\\0000008_02499_d_0000041.jpg",
+      "generated_path": "temp_generated\\generation_1763975253\\generated_009_oblique_60.jpg",
+      "transformation": "oblique_60",
+      "filename": "generated_009_oblique_60.jpg",
+      "detections": [
+        {
+          "class_id": 28,
+          "class_name": "suitcase",
+          "confidence": 0.6500716805458069,
+          "bbox": [
+            559,
+            300,
+            732,
+            576
+          ]
+        },
+        {
+          "class_id": 28,
+          "class_name": "suitcase",
+          "confidence": 0.37844452261924744,
+          "bbox": [
+            685,
+            285,
+            757,
+            341
+          ]
+        },
+        {
+          "class_id": 28,
+          "class_name": "suitcase",
+          "confidence": 0.36101996898651123,
+          "bbox": [
+            496,
+            315,
+            646,
+            546
+          ]
+        },
+        {
+          "class_id": 28,
+          "class_name": "suitcase",
+          "confidence": 0.3494924306869507,
+          "bbox": [
+            434,
+            304,
+            523,
+            420
+          ]
+        },
+        {
+          "class_id": 28,
+          "class_name": "suitcase",
+          "confidence": 0.3068908452987671,
+          "bbox": [
+            719,
+            340,
+            810,
+            409
+          ]
+        },
+        {
+          "class_id": 28,
+          "class_name": "suitcase",
+          "confidence": 0.3011157214641571,
+          "bbox": [
+            667,
+            389,
+            795,
+            581
+          ]
+        },
+        {
+          "class_id": 28,
+          "class_name": "suitcase",
+          "confidence": 0.26206687092781067,
+          "bbox": [
+            667,
+            396,
+            751,
+            573
+          ]
+        }
+      ]
+    },
+    {
+      "index": 10,
+      "original_path": "temp_uploads\\0000008_02499_d_0000041.jpg",
+      "generated_path": "temp_generated\\generation_1763975253\\generated_010_rotate_3d_90.jpg",
+      "transformation": "rotate_3d_90",
+      "filename": "generated_010_rotate_3d_90.jpg",
+      "detections": []
+    },
+    {
+      "index": 11,
+      "original_path": "temp_uploads\\0000008_02499_d_0000041.jpg",
+      "generated_path": "temp_generated\\generation_1763975253\\generated_011_bird_eye.jpg",
+      "transformation": "bird_eye",
+      "filename": "generated_011_bird_eye.jpg",
+      "detections": [
+        {
+          "class_id": 2,
+          "class_name": "car",
+          "confidence": 0.74239581823349,
+          "bbox": [
+            1104,
+            186,
+            1199,
+            231
+          ]
+        },
+        {
+          "class_id": 2,
+          "class_name": "car",
+          "confidence": 0.6672939658164978,
+          "bbox": [
+            1023,
+            133,
+            1102,
+            170
+          ]
+        },
+        {
+          "class_id": 2,
+          "class_name": "car",
+          "confidence": 0.47931617498397827,
+          "bbox": [
+            988,
+            96,
+            1054,
+            133
+          ]
+        },
+        {
+          "class_id": 2,
+          "class_name": "car",
+          "confidence": 0.4514337182044983,
+          "bbox": [
+            958,
+            76,
+            1034,
+            110
+          ]
+        },
+        {
+          "class_id": 7,
+          "class_name": "truck",
+          "confidence": 0.4463650584220886,
+          "bbox": [
+            470,
+            309,
+            796,
+            559
+          ]
+        },
+        {
+          "class_id": 2,
+          "class_name": "car",
+          "confidence": 0.4335804581642151,
+          "bbox": [
+            989,
+            89,
+            1052,
+            125
+          ]
+        },
+        {
+          "class_id": 28,
+          "class_name": "suitcase",
+          "confidence": 0.4069209098815918,
+          "bbox": [
+            520,
+            180,
+            662,
+            229
+          ]
+        },
+        {
+          "class_id": 7,
+          "class_name": "truck",
+          "confidence": 0.3499838709831238,
+          "bbox": [
+            510,
+            409,
+            784,
+            558
+          ]
+        }
+      ]
+    },
+    {
+      "index": 12,
+      "original_path": "temp_uploads\\0000008_02499_d_0000041.jpg",
+      "generated_path": "temp_generated\\generation_1763975253\\generated_012_top_down_45.jpg",
+      "transformation": "top_down_45",
+      "filename": "generated_012_top_down_45.jpg",
+      "detections": [
+        {
+          "class_id": 2,
+          "class_name": "car",
+          "confidence": 0.4513860046863556,
+          "bbox": [
+            1013,
+            165,
+            1086,
+            202
+          ]
+        },
+        {
+          "class_id": 7,
+          "class_name": "truck",
+          "confidence": 0.40322649478912354,
+          "bbox": [
+            526,
+            363,
+            774,
+            522
+          ]
+        },
+        {
+          "class_id": 2,
+          "class_name": "car",
+          "confidence": 0.35822543501853943,
+          "bbox": [
+            944,
+            121,
+            1000,
+            151
+          ]
+        },
+        {
+          "class_id": 2,
+          "class_name": "car",
+          "confidence": 0.3067511022090912,
+          "bbox": [
+            886,
+            78,
+            959,
+            118
+          ]
+        },
+        {
+          "class_id": 7,
+          "class_name": "truck",
+          "confidence": 0.29833242297172546,
+          "bbox": [
+            493,
+            96,
+            789,
+            522
+          ]
+        },
+        {
+          "class_id": 28,
+          "class_name": "suitcase",
+          "confidence": 0.28506553173065186,
+          "bbox": [
+            513,
+            233,
+            702,
+            299
+          ]
+        }
+      ]
+    },
+    {
+      "index": 13,
+      "original_path": "temp_uploads\\0000008_02499_d_0000041.jpg",
+      "generated_path": "temp_generated\\generation_1763975253\\generated_013_rotate_3d_45.jpg",
+      "transformation": "rotate_3d_45",
+      "filename": "generated_013_rotate_3d_45.jpg",
+      "detections": [
+        {
+          "class_id": 28,
+          "class_name": "suitcase",
+          "confidence": 0.31909629702568054,
+          "bbox": [
+            710,
+            273,
+            791,
+            352
+          ]
+        },
+        {
+          "class_id": 28,
+          "class_name": "suitcase",
+          "confidence": 0.3181104063987732,
+          "bbox": [
+            558,
+            215,
+            651,
+            283
+          ]
+        },
+        {
+          "class_id": 7,
+          "class_name": "truck",
+          "confidence": 0.2912229299545288,
+          "bbox": [
+            373,
+            207,
+            804,
+            601
+          ]
+        },
+        {
+          "class_id": 2,
+          "class_name": "car",
+          "confidence": 0.2695646584033966,
+          "bbox": [
+            705,
+            349,
+            835,
+            458
+          ]
+        }
+      ]
+    },
+    {
+      "index": 14,
+      "original_path": "temp_uploads\\0000008_02499_d_0000041.jpg",
+      "generated_path": "temp_generated\\generation_1763975253\\generated_014_fisheye_effect.jpg",
+      "transformation": "fisheye_effect",
+      "filename": "generated_014_fisheye_effect.jpg",
+      "detections": [
+        {
+          "class_id": 6,
+          "class_name": "train",
+          "confidence": 0.7661761045455933,
+          "bbox": [
+            279,
+            3,
+            984,
+            716
+          ]
+        },
+        {
+          "class_id": 2,
+          "class_name": "car",
+          "confidence": 0.5905004739761353,
+          "bbox": [
+            1193,
+            153,
+            1257,
+            204
+          ]
+        },
+        {
+          "class_id": 2,
+          "class_name": "car",
+          "confidence": 0.47829753160476685,
+          "bbox": [
+            1121,
+            80,
+            1175,
+            118
+          ]
+        },
+        {
+          "class_id": 2,
+          "class_name": "car",
+          "confidence": 0.3521667718887329,
+          "bbox": [
+            1080,
+            32,
+            1137,
+            67
+          ]
+        }
+      ]
+    },
+    {
+      "index": 15,
+      "original_path": "temp_uploads\\0000008_02499_d_0000041.jpg",
+      "generated_path": "temp_generated\\generation_1763975253\\generated_015_zoom_extreme.jpg",
+      "transformation": "zoom_extreme",
+      "filename": "generated_015_zoom_extreme.jpg",
+      "detections": [
+        {
+          "class_id": 7,
+          "class_name": "truck",
+          "confidence": 0.7025471925735474,
+          "bbox": [
+            360,
+            429,
+            873,
+            705
+          ]
+        },
+        {
+          "class_id": 7,
+          "class_name": "truck",
+          "confidence": 0.4005851447582245,
+          "bbox": [
+            277,
+            251,
+            927,
+            544
+          ]
+        },
+        {
+          "class_id": 2,
+          "class_name": "car",
+          "confidence": 0.3907909393310547,
+          "bbox": [
+            725,
+            168,
+            829,
+            265
+          ]
+        }
+      ]
+    },
+    {
+      "index": 16,
+      "original_path": "temp_uploads\\0000008_02499_d_0000041.jpg",
+      "generated_path": "temp_generated\\generation_1763975253\\generated_016_side_view_right.jpg",
+      "transformation": "side_view_right",
+      "filename": "generated_016_side_view_right.jpg",
+      "detections": [
+        {
+          "class_id": 2,
+          "class_name": "car",
+          "confidence": 0.7055812478065491,
+          "bbox": [
+            1251,
+            189,
+            1332,
+            234
+          ]
+        },
+        {
+          "class_id": 2,
+          "class_name": "car",
+          "confidence": 0.5943232178688049,
+          "bbox": [
+            1182,
+            138,
+            1248,
+            173
+          ]
+        },
+        {
+          "class_id": 7,
+          "class_name": "truck",
+          "confidence": 0.5255259871482849,
+          "bbox": [
+            700,
+            314,
+            988,
+            551
+          ]
+        },
+        {
+          "class_id": 2,
+          "class_name": "car",
+          "confidence": 0.4681670665740967,
+          "bbox": [
+            1125,
+            81,
+            1197,
+            117
+          ]
+        },
+        {
+          "class_id": 7,
+          "class_name": "truck",
+          "confidence": 0.3920237720012665,
+          "bbox": [
+            736,
+            407,
+            974,
+            553
+          ]
+        },
+        {
+          "class_id": 28,
+          "class_name": "suitcase",
+          "confidence": 0.37796029448509216,
+          "bbox": [
+            704,
+            226,
+            867,
+            292
+          ]
+        },
+        {
+          "class_id": 2,
+          "class_name": "car",
+          "confidence": 0.34498631954193115,
+          "bbox": [
+            1321,
+            264,
+            1359,
+            314
+          ]
+        },
+        {
+          "class_id": 7,
+          "class_name": "truck",
+          "confidence": 0.31415408849716187,
+          "bbox": [
+            697,
+            316,
+            1000,
+            451
+          ]
+        },
+        {
+          "class_id": 28,
+          "class_name": "suitcase",
+          "confidence": 0.2885025143623352,
+          "bbox": [
+            736,
+            273,
+            906,
+            343
+          ]
+        },
+        {
+          "class_id": 28,
+          "class_name": "suitcase",
+          "confidence": 0.27632004022598267,
+          "bbox": [
+            743,
+            182,
+            866,
+            231
+          ]
+        },
+        {
+          "class_id": 28,
+          "class_name": "suitcase",
+          "confidence": 0.2652372717857361,
+          "bbox": [
+            856,
+            218,
+            898,
+            264
+          ]
+        }
+      ]
+    },
+    {
+      "index": 17,
+      "original_path": "temp_uploads\\0000008_02499_d_0000041.jpg",
+      "generated_path": "temp_generated\\generation_1763975253\\generated_017_perspective_strong.jpg",
+      "transformation": "perspective_strong",
+      "filename": "generated_017_perspective_strong.jpg",
+      "detections": [
+        {
+          "class_id": 7,
+          "class_name": "truck",
+          "confidence": 0.5438033938407898,
+          "bbox": [
+            482,
+            152,
+            793,
+            571
+          ]
+        },
+        {
+          "class_id": 2,
+          "class_name": "car",
+          "confidence": 0.42208513617515564,
+          "bbox": [
+            950,
+            188,
+            1006,
+            216
+          ]
+        },
+        {
+          "class_id": 2,
+          "class_name": "car",
+          "confidence": 0.40018653869628906,
+          "bbox": [
+            891,
+            157,
+            961,
+            187
+          ]
+        },
+        {
+          "class_id": 7,
+          "class_name": "truck",
+          "confidence": 0.3907630145549774,
+          "bbox": [
+            507,
+            405,
+            786,
+            570
+          ]
+        },
+        {
+          "class_id": 2,
+          "class_name": "car",
+          "confidence": 0.3875456750392914,
+          "bbox": [
+            1027,
+            224,
+            1100,
+            257
+          ]
+        },
+        {
+          "class_id": 7,
+          "class_name": "truck",
+          "confidence": 0.30183783173561096,
+          "bbox": [
+            490,
+            306,
+            788,
+            572
+          ]
+        }
+      ]
+    },
+    {
+      "index": 18,
+      "original_path": "temp_uploads\\0000008_02499_d_0000041.jpg",
+      "generated_path": "temp_generated\\generation_1763975253\\generated_018_side_view_left.jpg",
+      "transformation": "side_view_left",
+      "filename": "generated_018_side_view_left.jpg",
+      "detections": [
+        {
+          "class_id": 2,
+          "class_name": "car",
+          "confidence": 0.7068902254104614,
+          "bbox": [
+            842,
+            190,
+            923,
+            234
+          ]
+        },
+        {
+          "class_id": 2,
+          "class_name": "car",
+          "confidence": 0.6597769260406494,
+          "bbox": [
+            774,
+            138,
+            841,
+            173
+          ]
+        },
+        {
+          "class_id": 7,
+          "class_name": "truck",
+          "confidence": 0.5188871026039124,
+          "bbox": [
+            292,
+            314,
+            580,
+            551
+          ]
+        },
+        {
+          "class_id": 2,
+          "class_name": "car",
+          "confidence": 0.4807722270488739,
+          "bbox": [
+            717,
+            81,
+            789,
+            117
+          ]
+        },
+        {
+          "class_id": 7,
+          "class_name": "truck",
+          "confidence": 0.41335529088974,
+          "bbox": [
+            328,
+            407,
+            566,
+            553
+          ]
+        },
+        {
+          "class_id": 28,
+          "class_name": "suitcase",
+          "confidence": 0.37440797686576843,
+          "bbox": [
+            296,
+            226,
+            459,
+            292
+          ]
+        },
+        {
+          "class_id": 7,
+          "class_name": "truck",
+          "confidence": 0.3304941952228546,
+          "bbox": [
+            289,
+            316,
+            593,
+            451
+          ]
+        },
+        {
+          "class_id": 28,
+          "class_name": "suitcase",
+          "confidence": 0.2815784215927124,
+          "bbox": [
+            328,
+            273,
+            498,
+            343
+          ]
+        },
+        {
+          "class_id": 28,
+          "class_name": "suitcase",
+          "confidence": 0.26421910524368286,
+          "bbox": [
+            448,
+            218,
+            490,
+            264
+          ]
+        },
+        {
+          "class_id": 2,
+          "class_name": "car",
+          "confidence": 0.2621435821056366,
+          "bbox": [
+            739,
+            95,
+            800,
+            135
+          ]
+        },
+        {
+          "class_id": 28,
+          "class_name": "suitcase",
+          "confidence": 0.25485002994537354,
+          "bbox": [
+            335,
+            182,
+            458,
+            231
+          ]
+        }
+      ]
+    }
+  ],
+  "confidence_statistics": {
+    "train": {
+      "count": 1,
+      "avg_confidence": 0.7661761045455933,
+      "max_confidence": 0.7661761045455933,
+      "min_confidence": 0.7661761045455933
+    },
+    "car": {
+      "count": 52,
+      "avg_confidence": 0.5060916606050271,
+      "max_confidence": 0.7959097623825073,
+      "min_confidence": 0.2621435821056366
+    },
+    "truck": {
+      "count": 29,
+      "avg_confidence": 0.41235681135078955,
+      "max_confidence": 0.7025471925735474,
+      "min_confidence": 0.25126320123672485
+    },
+    "suitcase": {
+      "count": 20,
+      "avg_confidence": 0.3308445855975151,
+      "max_confidence": 0.6500716805458069,
+      "min_confidence": 0.25485002994537354
+    }
+  }
+}

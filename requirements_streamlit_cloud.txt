@@ -1,0 +1,30 @@
+# Streamlit Cloud 优化版依赖
+# 针对CPU环境优化，确保快速安装
+
+# Web框架
+streamlit>=1.28.0
+
+# 数据处理
+pandas>=2.0.0
+numpy>=1.24.0
+scipy>=1.10.0
+
+# 可视化
+plotly>=5.17.0
+Pillow>=10.0.0
+
+# 图像处理（CPU版本）
+opencv-python-headless>=4.8.0
+
+# PyTorch（CPU版本，安装更快）
+# 注意：Streamlit Cloud使用CPU，所以安装CPU版本的PyTorch
+torch>=2.0.0,<2.2.0
+torchvision>=0.15.0,<0.17.0
+
+# YOLO模型
+ultralytics>=8.0.0
+
+# 可选：如果需要MLflow（如果不需要可以删除）
+# mlflow>=2.0.0
+
+

@@ -28,7 +28,7 @@ def create_test_images(output_dir, num_images=5):
             y1 = np.random.randint(50, height-150)
             x2 = x1 + np.random.randint(50, 150)
             y2 = y1 + np.random.randint(50, 150)
-            
+             
             color = (
                 np.random.randint(0, 255),
                 np.random.randint(0, 255),

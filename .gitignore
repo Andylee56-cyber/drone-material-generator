@@ -1,15 +1,57 @@
-﻿__pycache__/
+﻿# GitHub Token和敏感信息
+*.token
+*.key
+*_token.txt
+*_secret.txt
+config_local.ps1
+.git_token
+
+# Python
+__pycache__/
 *.py[cod]
-*.pt
-*.pth
-*.onnx
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 系统文件
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 日志文件
+*.log
+logs/
+
+# 临时文件
+*.tmp
+*.temp
+.cache/
+
+# 数据文件（如果很大）
+data/raw/
 *.h5
 *.pkl
-data/
-temp_*/
-*.log
-.env
-.streamlit/secrets.toml
-dist/
-build/
-*.egg-info/
+*.model
+
+# MLflow
+mlruns/
+mlartifacts/
+
+# 输出文件
+outputs/
+results/
+*.png
+*.jpg
+!test_images/*.png
+!test_images/*.jpg

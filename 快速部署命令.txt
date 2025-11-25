@@ -1,0 +1,23 @@
+# ========================================
+# 快速部署命令（直接复制到PowerShell执行）
+# ========================================
+
+# 1. 进入项目目录
+cd D:\mlflow_learning_project
+
+# 2. 添加文件到Git
+git add app/web/material_generator_app.py
+
+# 3. 提交更改
+git commit -m "Fix: 1. Move image count slider to main UI 2. Ensure detection boxes are drawn correctly 3. Add download functionality for enhanced images"
+
+# 4. 推送到GitHub（会要求输入用户名和Token）
+git push origin main
+
+# 提示：
+# - 用户名：Andylee56-cyber
+# - 密码：输入您的Personal Access Token（不是GitHub密码）
+
+
+
+

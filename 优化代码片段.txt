@@ -1,0 +1,27 @@
+# ========== 性能优化设置（在import语句之后添加） ==========
+import torch
+import gc
+
+# 限制CPU线程，避免过载
+if not torch.cuda.is_available():
+    torch.set_num_threads(1)
+    torch.set_grad_enabled(False)  # 推理时不需要梯度
+
+# ========== 模型缓存装饰器（在类定义之前添加） ==========
+# 这些装饰器可以用于缓存模型和函数结果
+
+# 使用示例：
+# @st.cache_resource
+# def load_model():
+#     """加载模型，只执行一次"""
+#     model = YourModel()
+#     model.eval()
+#     gc.collect()
+#     return model
+
+# @st.cache_data(max_entries=20)
+# def process_image(image):
+#     """处理图片，带缓存"""
+#     # 你的处理代码
+#     return result
+

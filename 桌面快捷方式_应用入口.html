@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>无人机素材生成系统 - 快速入口</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+            text-align: center;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 16px;
+        }
+        
+        .button {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 18px 40px;
+            border-radius: 50px;
+            text-decoration: none;
+            font-size: 18px;
+            font-weight: bold;
+            margin: 20px 0;
+            transition: transform 0.3s, box-shadow 0.3s;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+        
+        .button:active {
+            transform: translateY(0);
+        }
+        
+        .qr-section {
+            margin: 30px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 15px;
+        }
+        
+        .qr-title {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+        
+        .qr-code {
+            margin: 20px auto;
+            display: block;
+            max-width: 250px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        
+        .link-section {
+            margin: 30px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 15px;
+        }
+        
+        .link-text {
+            color: #333;
+            font-size: 14px;
+            word-break: break-all;
+            padding: 15px;
+            background: white;
+            border-radius: 10px;
+            margin: 10px 0;
+            border: 2px dashed #667eea;
+        }
+        
+        .copy-btn {
+            background: #28a745;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-top: 10px;
+            transition: background 0.3s;
+        }
+        
+        .copy-btn:hover {
+            background: #218838;
+        }
+        
+        .instructions {
+            margin-top: 30px;
+            text-align: left;
+            color: #666;
+            font-size: 14px;
+            line-height: 1.8;
+        }
+        
+        .instructions h3 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .instructions ul {
+            margin-left: 20px;
+        }
+        
+        .instructions li {
+            margin: 8px 0;
+        }
+        
+        .icon {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="icon">🚁</div>
+        <h1>无人机素材多角度生成与分析系统</h1>
+        <p class="subtitle">Drone Material Multi-Angle Generation System</p>
+        
+        <a href="https://drone-material-generator-ha8mscbtjeytbixqy6qtut.streamlit.app" 
+           target="_blank" 
+           class="button">
+            🚀 立即打开应用
+        </a>
+        
+        <div class="qr-section">
+            <h3 class="qr-title">📱 手机扫描二维码访问</h3>
+            <img src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=https://drone-material-generator-ha8mscbtjeytbixqy6qtut.streamlit.app" 
+                 alt="二维码" 
+                 class="qr-code">
+            <p style="color: #666; font-size: 14px; margin-top: 10px;">
+                用手机扫描上方二维码即可在手机上访问
+            </p>
+        </div>
+        
+        <div class="link-section">
+            <h3 class="qr-title">🔗 应用链接</h3>
+            <div class="link-text" id="linkText">
+                https://drone-material-generator-ha8mscbtjeytbixqy6qtut.streamlit.app
+            </div>
+            <button class="copy-btn" onclick="copyLink()">📋 复制链接</button>
+        </div>
+        
+        <div class="instructions">
+            <h3>📖 使用说明</h3>
+            <ul>
+                <li><strong>电脑访问：</strong>点击上方"立即打开应用"按钮</li>
+                <li><strong>手机访问：</strong>扫描二维码或复制链接到手机浏览器</li>
+                <li><strong>推荐浏览器：</strong>Chrome、Edge、Safari</li>
+                <li><strong>首次使用：</strong>可能需要10-30秒加载，请耐心等待</li>
+                <li><strong>网络建议：</strong>使用Wi-Fi网络以获得最佳体验</li>
+            </ul>
+        </div>
+    </div>
+    
+    <script>
+        function copyLink() {
+            const linkText = document.getElementById('linkText').textContent;
+            navigator.clipboard.writeText(linkText).then(function() {
+                const btn = event.target;
+                const originalText = btn.textContent;
+                btn.textContent = '✅ 已复制！';
+                btn.style.background = '#28a745';
+                setTimeout(function() {
+                    btn.textContent = originalText;
+                    btn.style.background = '#28a745';
+                }, 2000);
+            }).catch(function(err) {
+                alert('复制失败，请手动复制链接');
+            });
+        }
+    </script>
+</body>
+</html>
+

@@ -1,4 +1,4 @@
-﻿[theme]
+[theme]
 primaryColor = "#1f77b4"
 backgroundColor = "#ffffff"
 secondaryBackgroundColor = "#f0f2f6"
@@ -14,3 +14,4 @@ maxUploadSize = 200
 
 [browser]
 gatherUsageStats = false
+
