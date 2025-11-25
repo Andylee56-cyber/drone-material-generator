@@ -21,7 +21,7 @@ except ImportError:
         except Exception:
             raise ImportError(
                 "OpenCV (cv2) is not installed. "
-                "Please ensure 'opencv-python-headless>=4.8.0' is in requirements.txt. "
+                "Please ensure 'opencv-python-headless==4.5.4.62' is in requirements.txt. "
                 "If the error persists, try: pip install opencv-python-headless"
             )
 from PIL import Image
