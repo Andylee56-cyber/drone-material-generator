@@ -1,0 +1,15 @@
+# 备选方案：如果 opencv-python-headless 无法安装，使用这个文件
+# 使用方法：在 Streamlit Cloud 中，将 requirements.txt 重命名为 requirements_old.txt
+# 然后将此文件重命名为 requirements.txt
+
+streamlit>=1.28.0
+plotly>=5.17.0
+pandas>=2.0.0
+numpy>=1.24.0
+Pillow>=10.0.0
+opencv-python==4.8.0.76
+torch>=2.0.0
+torchvision>=0.15.0
+ultralytics>=8.0.0
+scipy>=1.10.0
+
