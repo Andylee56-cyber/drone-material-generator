@@ -197,7 +197,7 @@ class ImageMultiAngleGenerator:
         cv2 = _get_cv2()
         if cv2 is None:
             # 使用 PIL 降级方案，至少能生成图片（不带检测框）
-            st.warning("⚠️ OpenCV 不可用，将使用 PIL 进行图片处理（检测框功能将不可用）")
+            # 注意：这里不显示警告，让调用者处理
             return self._generate_with_pil_fallback(input_image_path, output_dir, num_generations, transformations)
         
         input_path = Path(input_image_path)

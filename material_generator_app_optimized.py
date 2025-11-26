@@ -295,11 +295,20 @@ if uploaded_file is not None:
                     if st.session_state.generator is None:
                         st.error("❌ 生成器不可用。请检查 OpenCV 是否已正确安装。")
                         st.stop()
-                    result = st.session_state.generator.generate_multi_angle_images(
-                        input_image_path=str(temp_path),
-                        output_dir=str(output_dir),
-                        num_generations=num_generations
-                    )
+                    
+                    # 尝试生成，如果 OpenCV 不可用会自动降级到 PIL
+                    try:
+                        result = st.session_state.generator.generate_multi_angle_images(
+                            input_image_path=str(temp_path),
+                            output_dir=str(output_dir),
+                            num_generations=num_generations
+                        )
+                        # 检查是否使用了降级方案
+                        if result.get('num_generated', 0) > 0 and not result.get('confidence_statistics'):
+                            st.info("ℹ️ 使用 PIL 降级方案生成图片（检测框功能不可用，但图片生成正常）")
+                    except Exception as e:
+                        st.error(f"❌ 生成失败: {e}")
+                        st.stop()
                     progress_bar.progress(50)
                     status_text.text(f"✅ 已生成 {result['num_generated']} 张素材")
                     st.session_state.generated_images = result['generated_files']
