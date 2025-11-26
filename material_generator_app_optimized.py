@@ -292,6 +292,9 @@ if uploaded_file is not None:
                     status_text = st.empty()
 
                     status_text.text("步骤1/2: 正在生成多角度素材（带检测框）...")
+                    if st.session_state.generator is None:
+                        st.error("❌ 生成器不可用。请检查 OpenCV 是否已正确安装。")
+                        st.stop()
                     result = st.session_state.generator.generate_multi_angle_images(
                         input_image_path=str(temp_path),
                         output_dir=str(output_dir),
@@ -304,9 +307,12 @@ if uploaded_file is not None:
 
                     if auto_analyze:
                         status_text.text("步骤2/2: 正在分析生成的素材...")
-                        analysis_result = st.session_state.agent.analyze_and_evaluate(
-                            result['generated_files']
-                        )
+                        if st.session_state.agent is None:
+                            st.warning("⚠️ 分析器不可用，跳过分析步骤。")
+                        else:
+                            analysis_result = st.session_state.agent.analyze_and_evaluate(
+                                result['generated_files']
+                            )
                         st.session_state.analysis_results = analysis_result
                         progress_bar.progress(100)
                         status_text.text("✅ 分析完成！")
@@ -463,21 +469,25 @@ if uploaded_file is not None:
 
                             # 批量增强
                             status_text.text("正在对质量较差的素材进行增强训练...")
-                            enhancement_result = st.session_state.enhancement_trainer.enhance_batch_to_excellent(
-                                image_paths=st.session_state.generated_images,
-                                output_dir=str(enhancement_dir),
-                                target_improvement=target_improvement,
-                                max_iterations=max_iterations
-                            )
+                            if st.session_state.enhancement_trainer is None:
+                                st.warning("⚠️ 增强训练器不可用，跳过增强步骤。")
+                                enhancement_result = None
+                            else:
+                                enhancement_result = st.session_state.enhancement_trainer.enhance_batch_to_excellent(
+                                    image_paths=st.session_state.generated_images,
+                                    output_dir=str(enhancement_dir),
+                                    target_improvement=target_improvement,
+                                    max_iterations=max_iterations
+                                )
 
                             st.session_state.enhancement_results = enhancement_result
-                            progress_bar.progress(100)
-                            status_text.text("✅ 增强训练完成！")
-
-                            # 显示增强结果
-                            st.success(f"✅ 增强训练完成！")
-                            st.info(f"📊 成功率: {enhancement_result['success_rate']:.2f}% | 达标率: {enhancement_result['achievement_rate']:.2f}%")
-                            st.info(f"📈 平均提升幅度: {enhancement_result.get('average_improvement', 0):.2f}分")
+                            if enhancement_result:
+                                progress_bar.progress(100)
+                                status_text.text("✅ 增强训练完成！")
+                                # 显示增强结果
+                                st.success(f"✅ 增强训练完成！")
+                                st.info(f"📊 成功率: {enhancement_result['success_rate']:.2f}% | 达标率: {enhancement_result['achievement_rate']:.2f}%")
+                                st.info(f"📈 平均提升幅度: {enhancement_result.get('average_improvement', 0):.2f}分")
                             st.info(f"⭐ 优秀({enhancement_result.get('excellent_count', 0)}) | 良好({enhancement_result.get('good_count', 0)}) | 一般({enhancement_result.get('fair_count', 0)}) | 较差({enhancement_result.get('poor_count', 0)})")
 
                             # 提供增强素材下载功能
