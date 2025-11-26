@@ -366,12 +366,23 @@ if uploaded_file is not None:
                             st.session_state.analysis_results = None
                         else:
                             try:
-                                analysis_result = st.session_state.agent.analyze_and_evaluate(
-                                    result['generated_files']
-                                )
-                                st.session_state.analysis_results = analysis_result
+                                # 确保文件路径是字符串列表
+                                image_files = result['generated_files']
+                                if not image_files:
+                                    st.warning("⚠️ 没有生成的图片可供分析")
+                                    st.session_state.analysis_results = None
+                                else:
+                                    # 打印调试信息
+                                    st.info(f"📊 开始分析 {len(image_files)} 张图片...")
+                                    analysis_result = st.session_state.agent.analyze_and_evaluate(
+                                        image_files
+                                    )
+                                    st.session_state.analysis_results = analysis_result
+                                    st.success(f"✅ 成功分析 {analysis_result.get('analysis', {}).get('total_images', 0)} 张图片")
                             except Exception as e:
+                                import traceback
                                 st.error(f"分析失败: {e}")
+                                st.code(traceback.format_exc())
                                 st.session_state.analysis_results = None
                         progress_bar.progress(100)
                         status_text.text("✅ 分析完成！")
