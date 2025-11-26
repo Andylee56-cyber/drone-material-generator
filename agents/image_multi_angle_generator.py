@@ -18,11 +18,11 @@ except ImportError:
             if spec is None:
                 raise ImportError("cv2 module not found")
             import cv2
-        except Exception:
+        except Exception as e:
             raise ImportError(
-                "OpenCV (cv2) is not installed. "
-                "Please ensure 'opencv-python-headless==4.5.4.62' is in requirements.txt. "
-                "If the error persists, try: pip install opencv-python-headless==4.5.4.62"
+                f"OpenCV (cv2) is not installed. Error: {e}. "
+                "Please ensure 'opencv-python-headless' is in requirements.txt. "
+                "If the error persists, try: pip install opencv-python-headless"
             )
 from PIL import Image, ImageDraw, ImageFont
 from pathlib import Path
