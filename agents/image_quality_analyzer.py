@@ -25,7 +25,19 @@ from PIL import Image
 import torch
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional
-from ultralytics import YOLO
+# 延迟导入 YOLO，避免在模块级别失败
+_YOLO_CLS = None
+def _get_yolo():
+    """延迟导入 YOLO"""
+    global _YOLO_CLS
+    if _YOLO_CLS is None:
+        try:
+            from ultralytics import YOLO as _YOLO_CLS_IMPORT
+            _YOLO_CLS = _YOLO_CLS_IMPORT
+        except Exception as e:
+            print(f"警告: YOLO 导入失败: {e}")
+            return None
+    return _YOLO_CLS
 import json
 from datetime import datetime
 
@@ -42,12 +54,21 @@ class ImageQualityAnalyzer:
         """
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         
-        # 加载YOLO模型用于目标检测
-        if yolo_model_path and Path(yolo_model_path).exists():
-            self.detector = YOLO(yolo_model_path)
+        # 延迟加载YOLO模型用于目标检测
+        self.detector = None
+        YOLO_CLS = _get_yolo()
+        if YOLO_CLS:
+            try:
+                if yolo_model_path and Path(yolo_model_path).exists():
+                    self.detector = YOLO_CLS(yolo_model_path)
+                else:
+                    # 使用预训练的YOLOv8n模型
+                    self.detector = YOLO_CLS('yolov8n.pt')
+            except Exception as e:
+                print(f"警告: YOLO 模型加载失败: {e}，将使用无检测模式")
+                self.detector = None
         else:
-            # 使用预训练的YOLOv8n模型
-            self.detector = YOLO('yolov8n.pt')
+            print("警告: YOLO 不可用，将使用无检测模式（部分维度可能不准确）")
         
         # 8个维度的名称
         self.dimensions = [
@@ -395,6 +416,11 @@ class ImageQualityAnalyzer:
     def _calculate_lighting_quality(self, img: np.ndarray) -> float:
         """计算拍摄光照质量维度 (0-100) - VisDrone优化：放宽标准"""
         # 转换为HSV色彩空间
+        cv2 = _get_cv2()
+        if cv2 is None:
+            # 如果 OpenCV 不可用，使用 PIL 计算基础亮度
+            brightness = np.mean(img)
+            return min(100, max(20, (brightness / 128.0) * 100))
         hsv = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
         v_channel = hsv[:, :, 2]  # 亮度通道
         
@@ -451,7 +477,8 @@ class ImageQualityAnalyzer:
         """计算目标尺寸维度 (0-100) - VisDrone优化：降低理想占比"""
         detections = self._detect_objects(img)
         if not detections:
-            return 0.0
+            # 如果没有检测到目标，返回中等分数而不是0
+            return 50.0
         
         h, w = img.shape[:2]
         total_area = h * w
@@ -478,7 +505,8 @@ class ImageQualityAnalyzer:
         """计算目标完整性维度 (0-100) - VisDrone优化：减少边缘惩罚"""
         detections = self._detect_objects(img)
         if not detections:
-            return 0.0
+            # 如果没有检测到目标，返回中等分数而不是0
+            return 50.0
         
         h, w = img.shape[:2]
         completeness_scores = []
@@ -510,7 +538,8 @@ class ImageQualityAnalyzer:
         """计算数据均衡度维度 (0-100) - VisDrone优化：保持但放宽"""
         detections = self._detect_objects(img)
         if not detections:
-            return 0.0
+            # 如果没有检测到目标，返回中等分数而不是0
+            return 50.0
         
         # 统计各类别的数量
         class_counts = {}
@@ -536,6 +565,9 @@ class ImageQualityAnalyzer:
     def _calculate_product_richness(self, img: np.ndarray) -> float:
         """计算产品丰富度维度 (0-100) - VisDrone优化：降低理想类别数"""
         detections = self._detect_objects(img)
+        if not detections:
+            # 如果没有检测到目标，返回中等分数而不是0
+            return 50.0
         unique_classes = len(set(det['class'] for det in detections))
         
         # VisDrone优化：理想情况降低为 3-6个不同类别（从5-10降低）
@@ -553,6 +585,8 @@ class ImageQualityAnalyzer:
         num_targets = len(detections)
         
         if num_targets == 0:
+            # 如果没有检测到目标，返回中等分数而不是0
+            return 50.0
             return 0.0
         
         # 计算单位面积内的目标数量
