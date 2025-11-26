@@ -52,17 +52,23 @@ try:
     AGENTS_AVAILABLE = True
 except Exception as e:
     AGENTS_AVAILABLE = False
+    IMPORT_ERROR = str(e)
     print(f"警告: Agents 导入失败: {e}")
     # 创建占位类，避免后续代码报错
     class ImageMultiAngleGenerator:
         def __init__(self, *args, **kwargs):
-            pass
+            self.draw_boxes = kwargs.get('draw_boxes', True)
+            self._error = IMPORT_ERROR
+        def generate_multi_angle_images(self, *args, **kwargs):
+            raise RuntimeError(f"ImageMultiAngleGenerator 不可用: {self._error}")
     class ImageQualityAnalyzer:
         def __init__(self, *args, **kwargs):
             pass
     class MaterialGeneratorAgent:
         def __init__(self, *args, **kwargs):
             pass
+        def analyze_and_evaluate(self, *args, **kwargs):
+            raise RuntimeError(f"MaterialGeneratorAgent 不可用: {IMPORT_ERROR}")
     class MaterialEnhancementTrainer:
         def __init__(self, *args, **kwargs):
             pass
@@ -79,13 +85,22 @@ else:
 @st.cache_resource
 def get_generator(draw_boxes=True):
     """获取生成器，只初始化一次，自动使用GPU"""
-    generator = ImageMultiAngleGenerator(draw_boxes=draw_boxes)
-    # 如果生成器有模型，移动到GPU
-    if hasattr(generator, 'model') and generator.model is not None:
-        if torch.cuda.is_available():
-            generator.model = generator.model.to(device)
-            generator.model.eval()
-    return generator
+    if not AGENTS_AVAILABLE:
+        # 如果 agents 不可用，返回占位生成器
+        return ImageMultiAngleGenerator(draw_boxes=draw_boxes)
+    
+    try:
+        generator = ImageMultiAngleGenerator(draw_boxes=draw_boxes)
+        # 如果生成器有模型，移动到GPU
+        if hasattr(generator, 'model') and generator.model is not None:
+            if torch.cuda.is_available():
+                generator.model = generator.model.to(device)
+                generator.model.eval()
+        return generator
+    except Exception as e:
+        # 如果初始化失败，返回占位生成器
+        print(f"生成器初始化失败: {e}")
+        return ImageMultiAngleGenerator(draw_boxes=draw_boxes)
 
 @st.cache_resource
 def get_agent():
@@ -276,6 +291,11 @@ if uploaded_file is not None:
                     status_text = st.empty()
 
                     status_text.text("步骤1/2: 正在生成多角度素材（带检测框）...")
+                    # 检查生成器是否可用
+                    if not hasattr(st.session_state.generator, 'generate_multi_angle_images'):
+                        st.error(f"❌ 生成器不可用。错误: {IMPORT_ERROR if not AGENTS_AVAILABLE else '未知错误'}")
+                        st.stop()
+                    
                     result = st.session_state.generator.generate_multi_angle_images(
                         input_image_path=str(temp_path),
                         output_dir=str(output_dir),
