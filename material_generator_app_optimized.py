@@ -48,6 +48,15 @@ os.environ['DISPLAY'] = ''
 os.environ['LIBGL_ALWAYS_SOFTWARE'] = '1'
 
 # 延迟导入 agents，如果失败显示友好错误
+# 先确保 numpy 正确导入
+try:
+    import numpy as np
+    # 测试 numpy 核心功能
+    _ = np.array([1, 2, 3])
+except Exception as e:
+    st.error(f"NumPy import failed: {e}")
+    st.stop()
+
 try:
     from agents.image_multi_angle_generator import ImageMultiAngleGenerator
     from agents.image_quality_analyzer import ImageQualityAnalyzer
@@ -98,6 +107,15 @@ def get_generator(draw_boxes=True):
     import os
     os.environ['OPENCV_DISABLE_OPENCL'] = '1'
     os.environ['QT_QPA_PLATFORM'] = 'offscreen'
+    os.environ['DISPLAY'] = ''
+    os.environ['LIBGL_ALWAYS_SOFTWARE'] = '1'
+    
+    # 确保 numpy 可用
+    try:
+        import numpy as np
+        _ = np.array([1])
+    except Exception as e:
+        raise RuntimeError(f"NumPy not available: {e}")
     
     try:
         generator = ImageMultiAngleGenerator(draw_boxes=draw_boxes)
