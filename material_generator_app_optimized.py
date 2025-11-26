@@ -48,25 +48,76 @@ except IndexError:
 sys.path.insert(0, str(project_root))
 
 # 延迟导入 agents，如果失败显示友好错误
+AGENTS_AVAILABLE = False
+IMPORT_ERROR = None
+
 try:
+    # 先尝试导入，即使有警告也继续
+    import warnings
+    warnings.filterwarnings('ignore')
+    
     from agents.image_multi_angle_generator import ImageMultiAngleGenerator
     from agents.image_quality_analyzer import ImageQualityAnalyzer
     from agents.material_generator_agent import MaterialGeneratorAgent
     from agents.material_enhancement_trainer import MaterialEnhancementTrainer
-    AGENTS_AVAILABLE = True
+    
+    # 测试类是否可以实例化（即使 OpenCV 有警告）
+    try:
+        test_gen = ImageMultiAngleGenerator(draw_boxes=False)
+        del test_gen
+        AGENTS_AVAILABLE = True
+        print("✅ Agents 导入成功")
+    except Exception as test_error:
+        # 如果实例化失败，检查是否是 libGL 错误
+        error_str = str(test_error)
+        if 'libGL' in error_str or 'libGL.so' in error_str:
+            # libGL 错误不应该阻止使用，OpenCV headless 不需要它
+            print(f"⚠️ 检测到 libGL 警告，但继续使用: {test_error}")
+            AGENTS_AVAILABLE = True
+        else:
+            raise
+    
 except Exception as e:
-    AGENTS_AVAILABLE = False
     IMPORT_ERROR = str(e)
-    print(f"警告: Agents 导入失败: {e}")
-    # 创建占位类，避免后续代码报错
-    # 注意：如果只是 OpenCV 导入失败，真正的类应该能初始化（使用 PIL 降级）
-    # 只有在整个模块导入失败时才使用占位类
+    error_str = str(e)
+    
+    # 如果是 libGL 错误，不应该阻止导入
+    if 'libGL' in error_str or 'libGL.so' in error_str:
+        print(f"⚠️ 检测到 libGL 警告，但继续使用: {e}")
+        # 强制导入，忽略 libGL 错误
+        try:
+            from agents.image_multi_angle_generator import ImageMultiAngleGenerator
+            from agents.image_quality_analyzer import ImageQualityAnalyzer
+            from agents.material_generator_agent import MaterialGeneratorAgent
+            from agents.material_enhancement_trainer import MaterialEnhancementTrainer
+            AGENTS_AVAILABLE = True
+            print("✅ Agents 在忽略 libGL 错误后导入成功")
+        except Exception as e2:
+            AGENTS_AVAILABLE = False
+            print(f"❌ Agents 导入失败: {e2}")
+    else:
+        AGENTS_AVAILABLE = False
+        print(f"❌ Agents 导入失败: {e}")
+
+# 只有在真正失败时才创建占位类
+if not AGENTS_AVAILABLE:
     class ImageMultiAngleGenerator:
         def __init__(self, *args, **kwargs):
             self.draw_boxes = kwargs.get('draw_boxes', True)
-            self._error = IMPORT_ERROR
+            self._error = IMPORT_ERROR or "未知错误"
         def generate_multi_angle_images(self, *args, **kwargs):
             raise RuntimeError(f"ImageMultiAngleGenerator 不可用: {self._error}")
+    class ImageQualityAnalyzer:
+        def __init__(self, *args, **kwargs):
+            pass
+    class MaterialGeneratorAgent:
+        def __init__(self, *args, **kwargs):
+            pass
+        def analyze_and_evaluate(self, *args, **kwargs):
+            raise RuntimeError(f"MaterialGeneratorAgent 不可用: {IMPORT_ERROR or '未知错误'}")
+    class MaterialEnhancementTrainer:
+        def __init__(self, *args, **kwargs):
+            pass
     class ImageQualityAnalyzer:
         def __init__(self, *args, **kwargs):
             pass

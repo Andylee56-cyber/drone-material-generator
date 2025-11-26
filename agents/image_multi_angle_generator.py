@@ -3,6 +3,13 @@
 支持真正的无人机3D视角变换，并绘制YOLO检测框
 """
 
+import os
+# 必须在任何导入前设置环境变量
+os.environ['OPENCV_DISABLE_OPENCL'] = '1'
+os.environ['QT_QPA_PLATFORM'] = 'offscreen'
+os.environ['DISPLAY'] = ''
+os.environ['LIBGL_ALWAYS_SOFTWARE'] = '1'
+
 import numpy as np
 
 # 延迟导入 OpenCV，避免在模块级别失败
