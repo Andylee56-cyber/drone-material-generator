@@ -36,50 +36,12 @@ except IndexError:
     project_root = Path(__file__).resolve().parent
 sys.path.insert(0, str(project_root))
 
-# 设置环境变量避免 OpenGL 依赖（在导入前设置，必须最早）
-import os
-# 必须在任何导入前设置
-if 'OPENCV_DISABLE_OPENCL' not in os.environ:
-    os.environ['OPENCV_DISABLE_OPENCL'] = '1'
-if 'QT_QPA_PLATFORM' not in os.environ:
-    os.environ['QT_QPA_PLATFORM'] = 'offscreen'
-# 尝试设置更多环境变量避免 GUI 依赖
-os.environ['DISPLAY'] = ''
-os.environ['LIBGL_ALWAYS_SOFTWARE'] = '1'
-
-# 延迟导入 agents，如果失败显示友好错误
-try:
-    from agents.image_multi_angle_generator import ImageMultiAngleGenerator
-    from agents.image_quality_analyzer import ImageQualityAnalyzer
-    from agents.material_generator_agent import MaterialGeneratorAgent
-    from agents.material_enhancement_trainer import MaterialEnhancementTrainer
-    AGENTS_AVAILABLE = True
-    IMPORT_ERROR = None
-except Exception as e:
-    AGENTS_AVAILABLE = False
-    IMPORT_ERROR = str(e)
-    # 创建占位类，避免后续代码报错
-    class ImageMultiAngleGenerator:
-        def __init__(self, *args, **kwargs):
-            pass
-        def generate_multi_angle_images(self, *args, **kwargs):
-            raise RuntimeError(f"ImageMultiAngleGenerator not available: {IMPORT_ERROR}")
-    class ImageQualityAnalyzer:
-        def __init__(self, *args, **kwargs):
-            pass
-    class MaterialGeneratorAgent:
-        def __init__(self, *args, **kwargs):
-            pass
-    class MaterialEnhancementTrainer:
-        def __init__(self, *args, **kwargs):
-            pass
+from agents.image_multi_angle_generator import ImageMultiAngleGenerator
+from agents.image_quality_analyzer import ImageQualityAnalyzer
+from agents.material_generator_agent import MaterialGeneratorAgent
+from agents.material_enhancement_trainer import MaterialEnhancementTrainer
 
 st.set_page_config(page_title="无人机素材生成系统", page_icon="🚁", layout="wide", initial_sidebar_state="expanded")
-
-# 如果 agents 不可用，显示警告
-if not AGENTS_AVAILABLE:
-    st.error(f"⚠️ 部分功能暂时不可用。错误信息: {IMPORT_ERROR}")
-    st.info("💡 提示：这通常是因为 OpenCV 的系统依赖问题。应用已启动，但某些功能可能受限。")
 
 # 显示GPU状态（在页面配置之后）
 if torch.cuda.is_available():
@@ -91,73 +53,35 @@ else:
 @st.cache_resource
 def get_generator(draw_boxes=True):
     """获取生成器，只初始化一次，自动使用GPU"""
-    if not AGENTS_AVAILABLE:
-        # 返回占位对象，允许应用启动
-        class PlaceholderGenerator:
-            def __init__(self):
-                self.draw_boxes = draw_boxes
-            def generate_multi_angle_images(self, *args, **kwargs):
-                raise RuntimeError(f"Generator unavailable: {IMPORT_ERROR}")
-        return PlaceholderGenerator()
-    
-    # 确保环境变量已设置
-    import os
-    os.environ['OPENCV_DISABLE_OPENCL'] = '1'
-    os.environ['QT_QPA_PLATFORM'] = 'offscreen'
-    
-    try:
-        generator = ImageMultiAngleGenerator(draw_boxes=draw_boxes)
-        # 如果生成器有模型，移动到GPU
-        if hasattr(generator, 'model') and generator.model is not None:
-            if torch.cuda.is_available():
-                generator.model = generator.model.to(device)
-                generator.model.eval()
-        return generator
-    except Exception as e:
-        # 返回占位对象，允许应用启动
-        class PlaceholderGenerator:
-            def __init__(self, error_msg):
-                self.draw_boxes = draw_boxes
-                self._error = error_msg
-            def generate_multi_angle_images(self, *args, **kwargs):
-                raise RuntimeError(f"Generator initialization failed: {self._error}")
-        return PlaceholderGenerator(str(e))
+    generator = ImageMultiAngleGenerator(draw_boxes=draw_boxes)
+    # 如果生成器有模型，移动到GPU
+    if hasattr(generator, 'model') and generator.model is not None:
+        if torch.cuda.is_available():
+            generator.model = generator.model.to(device)
+            generator.model.eval()
+    return generator
 
 @st.cache_resource
 def get_agent():
     """获取代理，只初始化一次，自动使用GPU"""
-    if not AGENTS_AVAILABLE:
-        return None
-    try:
-        agent = MaterialGeneratorAgent()
-        # 如果代理有模型，移动到GPU
-        if hasattr(agent, 'model') and agent.model is not None:
-            if torch.cuda.is_available():
-                agent.model = agent.model.to(device)
-                agent.model.eval()
-        return agent
-    except Exception as e:
-        # 返回 None 而不是抛出错误，允许应用继续运行
-        print(f"Warning: Failed to initialize agent: {e}")
-        return None
+    agent = MaterialGeneratorAgent()
+    # 如果代理有模型，移动到GPU
+    if hasattr(agent, 'model') and agent.model is not None:
+        if torch.cuda.is_available():
+            agent.model = agent.model.to(device)
+            agent.model.eval()
+    return agent
 
 @st.cache_resource
 def get_enhancement_trainer():
     """获取增强训练器，只初始化一次，自动使用GPU"""
-    if not AGENTS_AVAILABLE:
-        return None
-    try:
-        trainer = MaterialEnhancementTrainer()
-        # 如果训练器有模型，移动到GPU
-        if hasattr(trainer, 'model') and trainer.model is not None:
-            if torch.cuda.is_available():
-                trainer.model = trainer.model.to(device)
-                trainer.model.eval()
-        return trainer
-    except Exception as e:
-        # 返回 None 而不是抛出错误，允许应用继续运行
-        print(f"Warning: Failed to initialize enhancement trainer: {e}")
-        return None
+    trainer = MaterialEnhancementTrainer()
+    # 如果训练器有模型，移动到GPU
+    if hasattr(trainer, 'model') and trainer.model is not None:
+        if torch.cuda.is_available():
+            trainer.model = trainer.model.to(device)
+            trainer.model.eval()
+    return trainer
 
 # ========== 移动端优化 ==========
 st.markdown("""
@@ -223,18 +147,10 @@ st.markdown("---")
 # 使用缓存的模型初始化
 if 'generator' not in st.session_state:
     st.session_state.generator = get_generator(draw_boxes=True)
-
 if 'agent' not in st.session_state:
-    try:
-        st.session_state.agent = get_agent()
-    except Exception:
-        st.session_state.agent = None
-
+    st.session_state.agent = get_agent()
 if 'enhancement_trainer' not in st.session_state:
-    try:
-        st.session_state.enhancement_trainer = get_enhancement_trainer()
-    except Exception:
-        st.session_state.enhancement_trainer = None
+    st.session_state.enhancement_trainer = get_enhancement_trainer()
 if 'generated_images' not in st.session_state:
     st.session_state.generated_images = []
 if 'analysis_results' not in st.session_state:
@@ -334,26 +250,11 @@ if uploaded_file is not None:
                     status_text = st.empty()
 
                     status_text.text("步骤1/2: 正在生成多角度素材（带检测框）...")
-                    
-                    # 使用完整功能生成
-                    try:
-                        result = st.session_state.generator.generate_multi_angle_images(
-                            input_image_path=str(temp_path),
-                            output_dir=str(output_dir),
-                            num_generations=num_generations
-                        )
-                    except RuntimeError as e:
-                        error_msg = str(e)
-                        if 'libGL.so.1' in error_msg or 'OpenCV' in error_msg or 'Generator unavailable' in error_msg:
-                            st.error(f"❌ OpenCV 系统依赖缺失: {error_msg}")
-                            st.warning("⚠️ 由于系统依赖问题，完整功能暂时不可用。")
-                            st.info("💡 提示：Streamlit Cloud 环境可能缺少系统库 libGL.so.1。这是平台限制，无法在应用内解决。")
-                        else:
-                            st.error(f"❌ 生成失败: {error_msg}")
-                        st.stop()
-                    except Exception as e:
-                        st.error(f"❌ 生成失败: {e}")
-                        st.stop()
+                    result = st.session_state.generator.generate_multi_angle_images(
+                        input_image_path=str(temp_path),
+                        output_dir=str(output_dir),
+                        num_generations=num_generations
+                    )
                     progress_bar.progress(50)
                     status_text.text(f"✅ 已生成 {result['num_generated']} 张素材")
                     st.session_state.generated_images = result['generated_files']
@@ -361,29 +262,10 @@ if uploaded_file is not None:
 
                     if auto_analyze:
                         status_text.text("步骤2/2: 正在分析生成的素材...")
-                        if st.session_state.agent is None:
-                            st.warning("⚠️ 分析器不可用，跳过分析步骤。")
-                            st.session_state.analysis_results = None
-                        else:
-                            try:
-                                # 确保文件路径是字符串列表
-                                image_files = result['generated_files']
-                                if not image_files:
-                                    st.warning("⚠️ 没有生成的图片可供分析")
-                                    st.session_state.analysis_results = None
-                                else:
-                                    # 打印调试信息
-                                    st.info(f"📊 开始分析 {len(image_files)} 张图片...")
-                                    analysis_result = st.session_state.agent.analyze_and_evaluate(
-                                        image_files
-                                    )
-                                    st.session_state.analysis_results = analysis_result
-                                    st.success(f"✅ 成功分析 {analysis_result.get('analysis', {}).get('total_images', 0)} 张图片")
-                            except Exception as e:
-                                import traceback
-                                st.error(f"分析失败: {e}")
-                                st.code(traceback.format_exc())
-                                st.session_state.analysis_results = None
+                        analysis_result = st.session_state.agent.analyze_and_evaluate(
+                            result['generated_files']
+                        )
+                        st.session_state.analysis_results = analysis_result
                         progress_bar.progress(100)
                         status_text.text("✅ 分析完成！")
                     else:
@@ -477,14 +359,7 @@ if uploaded_file is not None:
         st.markdown("---")
         st.subheader("📊 8维度雷达图分析")
         avg_scores = st.session_state.analysis_results['analysis']['average_scores']
-        
-        # 安全获取 overall_quality，如果不存在则计算平均值
-        recommendations = st.session_state.analysis_results.get('recommendations', {})
-        if 'overall_quality' in recommendations:
-            overall_quality = recommendations['overall_quality']
-        else:
-            # 如果没有 overall_quality，从平均分计算
-            overall_quality = np.mean(list(avg_scores.values())) if avg_scores else 0.0
+        overall_quality = st.session_state.analysis_results['recommendations']['overall_quality']
 
         # 判断是否需要增强训练
         needs_enhancement = overall_quality < 50.0  # VisDrone数据集标准降低
@@ -546,25 +421,21 @@ if uploaded_file is not None:
 
                             # 批量增强
                             status_text.text("正在对质量较差的素材进行增强训练...")
-                            if st.session_state.enhancement_trainer is None:
-                                st.warning("⚠️ 增强训练器不可用，跳过增强步骤。")
-                                enhancement_result = None
-                            else:
-                                enhancement_result = st.session_state.enhancement_trainer.enhance_batch_to_excellent(
-                                    image_paths=st.session_state.generated_images,
-                                    output_dir=str(enhancement_dir),
-                                    target_improvement=target_improvement,
-                                    max_iterations=max_iterations
-                                )
+                            enhancement_result = st.session_state.enhancement_trainer.enhance_batch_to_excellent(
+                                image_paths=st.session_state.generated_images,
+                                output_dir=str(enhancement_dir),
+                                target_improvement=target_improvement,
+                                max_iterations=max_iterations
+                            )
 
                             st.session_state.enhancement_results = enhancement_result
-                            if enhancement_result:
-                                progress_bar.progress(100)
-                                status_text.text("✅ 增强训练完成！")
-                                # 显示增强结果
-                                st.success(f"✅ 增强训练完成！")
-                                st.info(f"📊 成功率: {enhancement_result['success_rate']:.2f}% | 达标率: {enhancement_result['achievement_rate']:.2f}%")
-                                st.info(f"📈 平均提升幅度: {enhancement_result.get('average_improvement', 0):.2f}分")
+                            progress_bar.progress(100)
+                            status_text.text("✅ 增强训练完成！")
+
+                            # 显示增强结果
+                            st.success(f"✅ 增强训练完成！")
+                            st.info(f"📊 成功率: {enhancement_result['success_rate']:.2f}% | 达标率: {enhancement_result['achievement_rate']:.2f}%")
+                            st.info(f"📈 平均提升幅度: {enhancement_result.get('average_improvement', 0):.2f}分")
                             st.info(f"⭐ 优秀({enhancement_result.get('excellent_count', 0)}) | 良好({enhancement_result.get('good_count', 0)}) | 一般({enhancement_result.get('fair_count', 0)}) | 较差({enhancement_result.get('poor_count', 0)})")
 
                             # 提供增强素材下载功能

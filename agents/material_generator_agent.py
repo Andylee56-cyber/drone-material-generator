@@ -38,76 +38,19 @@ class MaterialGeneratorAgent:
             分析结果和质量评估
         """
         # 批量分析
-        if not image_paths:
-            # 如果图片路径为空，返回空结果
-            return {
-                'analysis': {
-                    "individual_results": [],
-                    "average_scores": {dim: 50.0 for dim in self.analyzer.dimensions},
-                    "total_images": 0,
-                    "total_annotations": 0
-                },
-                'quality_evaluation': [],
-                'recommendations': {}
-            }
-        
         analysis_results = self.analyzer.analyze_batch(image_paths)
-        
-        # 确保 analysis_results 有有效数据
-        if not analysis_results.get('individual_results'):
-            # 如果没有结果，为每张图片创建默认结果
-            default_results = [{
-                'image_path': str(img_path),
-                "图片数据量": 50.0,
-                "拍摄光照质量": 50.0,
-                "目标尺寸": 50.0,
-                "目标完整性": 50.0,
-                "数据均衡度": 50.0,
-                "产品丰富度": 50.0,
-                "目标密集度": 50.0,
-                "场景复杂度": 50.0
-            } for img_path in image_paths]
-            analysis_results = {
-                "individual_results": default_results,
-                "average_scores": {dim: 50.0 for dim in self.analyzer.dimensions},
-                "total_images": len(image_paths),
-                "total_annotations": 0
-            }
-        
-        # 确保 total_images 正确
-        if analysis_results.get('total_images', 0) == 0 and image_paths:
-            analysis_results['total_images'] = len(image_paths)
         
         # 评估每张图片的综合质量
         quality_scores = []
         for result in analysis_results['individual_results']:
-            try:
-                scores = [result.get(dim, 50.0) for dim in self.analyzer.dimensions]
-                avg_score = np.mean(scores) if scores else 50.0
-                quality_scores.append({
-                    'image_path': result.get('image_path', 'unknown'),
-                    'average_score': avg_score,
-                    'dimension_scores': {dim: result.get(dim, 50.0) for dim in self.analyzer.dimensions},
-                    'quality_level': self._get_quality_level(avg_score)
-                })
-            except Exception as e:
-                print(f"处理分析结果时出错: {e}")
-                # 即使出错也添加默认结果
-                quality_scores.append({
-                    'image_path': result.get('image_path', 'unknown'),
-                    'average_score': 50.0,
-                    'dimension_scores': {dim: 50.0 for dim in self.analyzer.dimensions},
-                    'quality_level': '中等'
-                })
-        
-        # 确保至少有一个结果
-        if not quality_scores:
-            quality_scores = [{
-                'image_path': image_paths[0] if image_paths else "unknown",
-                'average_score': 50.0,
-                'dimension_scores': {dim: 50.0 for dim in self.analyzer.dimensions},
-                'quality_level': '中等'
-            }]
+            scores = [result[dim] for dim in self.analyzer.dimensions]
+            avg_score = np.mean(scores)
+            quality_scores.append({
+                'image_path': result['image_path'],
+                'average_score': avg_score,
+                'dimension_scores': {dim: result[dim] for dim in self.analyzer.dimensions},
+                'quality_level': self._get_quality_level(avg_score)
+            })
         
         # 按质量排序
         quality_scores.sort(key=lambda x: x['average_score'], reverse=True)

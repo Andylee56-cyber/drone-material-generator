@@ -5,39 +5,30 @@
 """
 
 import numpy as np
-
-# 延迟导入 OpenCV
-_cv2_available = None
-_cv2 = None
-
-def _get_cv2():
-    """延迟导入 OpenCV，如果失败返回 None"""
-    global _cv2_available, _cv2
-    if _cv2_available is None:
+try:
+    import cv2
+except ImportError:
+    try:
+        import cv2.cv2 as cv2
+    except ImportError:
         try:
+            import sys
+            import importlib.util
+            spec = importlib.util.find_spec("cv2")
+            if spec is None:
+                raise ImportError("cv2 module not found")
             import cv2
-            _cv2 = cv2
-            _cv2_available = True
-        except (ImportError, OSError):
-            _cv2_available = False
-    return _cv2 if _cv2_available else None
+        except Exception:
+            raise ImportError(
+                "OpenCV (cv2) is not installed. "
+                "Please ensure 'opencv-python-headless>=4.8.0' is in requirements.txt. "
+                "If the error persists, try: pip install opencv-python-headless"
+            )
 from PIL import Image
 import torch
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional
-# 延迟导入 YOLO，避免在模块级别失败
-_YOLO_CLS = None
-def _get_yolo():
-    """延迟导入 YOLO"""
-    global _YOLO_CLS
-    if _YOLO_CLS is None:
-        try:
-            from ultralytics import YOLO as _YOLO_CLS_IMPORT
-            _YOLO_CLS = _YOLO_CLS_IMPORT
-        except Exception as e:
-            print(f"警告: YOLO 导入失败: {e}")
-            return None
-    return _YOLO_CLS
+from ultralytics import YOLO
 import json
 from datetime import datetime
 
@@ -54,50 +45,12 @@ class ImageQualityAnalyzer:
         """
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         
-        # 延迟加载YOLO模型用于目标检测
-        self.detector = None
-        YOLO_CLS = _get_yolo()
-        if YOLO_CLS:
-            try:
-                if yolo_model_path and Path(yolo_model_path).exists():
-                    self.detector = YOLO_CLS(yolo_model_path)
-                    print(f"✅ YOLO 模型已加载: {yolo_model_path}")
-                else:
-                    # 使用预训练的YOLOv8n模型，自动下载
-                    print("📥 正在加载 YOLOv8n 模型（首次使用会自动下载）...")
-                    try:
-                        self.detector = YOLO_CLS('yolov8n.pt')
-                        print("✅ YOLOv8n 模型加载成功")
-                    except Exception as download_error:
-                        print(f"⚠️ YOLOv8n 模型下载失败: {download_error}")
-                        # 尝试使用 yolov8n-seg.pt 或其他模型
-                        try:
-                            print("📥 尝试使用备用模型...")
-                            self.detector = YOLO_CLS('yolov8s.pt')  # 尝试更大的模型
-                            print("✅ 备用模型加载成功")
-                        except Exception as backup_error:
-                            print(f"❌ 所有 YOLO 模型加载失败: {backup_error}")
-                            raise RuntimeError(f"无法加载 YOLO 模型。请检查网络连接或手动下载模型文件。错误: {backup_error}")
-            except Exception as e:
-                error_msg = str(e)
-                print(f"❌ YOLO 模型初始化失败: {error_msg}")
-                # 如果是网络问题，给出明确提示
-                if 'download' in error_msg.lower() or 'network' in error_msg.lower() or 'connection' in error_msg.lower():
-                    raise RuntimeError(
-                        f"YOLO 模型下载失败。这通常是因为网络连接问题。\n"
-                        f"解决方案：\n"
-                        f"1. 检查网络连接\n"
-                        f"2. 手动下载 yolov8n.pt 到项目目录\n"
-                        f"3. 或使用代理/VPN\n"
-                        f"原始错误: {error_msg}"
-                    )
-                else:
-                    raise RuntimeError(f"YOLO 模型初始化失败: {error_msg}")
+        # 加载YOLO模型用于目标检测
+        if yolo_model_path and Path(yolo_model_path).exists():
+            self.detector = YOLO(yolo_model_path)
         else:
-            raise RuntimeError(
-                "YOLO 库不可用。请确保已安装 ultralytics:\n"
-                "pip install ultralytics"
-            )
+            # 使用预训练的YOLOv8n模型
+            self.detector = YOLO('yolov8n.pt')
         
         # 8个维度的名称
         self.dimensions = [
@@ -121,37 +74,13 @@ class ImageQualityAnalyzer:
         返回:
             包含8个维度分数的字典
         """
-        # 确保路径是字符串
-        image_path = str(image_path)
+        # 读取图片
+        img = cv2.imread(image_path)
+        if img is None:
+            raise ValueError(f"无法读取图片: {image_path}")
         
-        # 先尝试用 PIL 读取（更可靠）
-        try:
-            pil_img = Image.open(image_path).convert("RGB")
-            img_array = np.array(pil_img)
-            h, w = pil_img.size[1], pil_img.size[0]  # PIL 返回 (width, height)
-            
-            # 读取图片 - 使用延迟加载的 cv2
-            cv2 = _get_cv2()
-            if cv2 is None:
-                # 如果 OpenCV 不可用，使用 PIL 降级方案
-                return self._analyze_with_pil(image_path)
-            
-            # 转换 PIL 图像为 OpenCV 格式
-            img = cv2.cvtColor(img_array, cv2.COLOR_RGB2BGR)
-            img_rgb = img_array  # 已经是 RGB
-        except Exception as e:
-            print(f"读取图片 {image_path} 失败: {e}")
-            # 如果 PIL 也失败，尝试 OpenCV
-            cv2 = _get_cv2()
-            if cv2 is None:
-                raise ValueError(f"无法读取图片 {image_path}: OpenCV 和 PIL 都不可用")
-            
-            img = cv2.imread(image_path)
-            if img is None:
-                raise ValueError(f"无法读取图片 {image_path}: cv2.imread 返回 None")
-            
-            img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-            h, w = img.shape[:2]
+        img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        h, w = img.shape[:2]
         
         # 1. 图片数据量 (基于图片分辨率和文件大小)
         data_quantity = self._calculate_data_quantity(image_path, h, w)
@@ -188,68 +117,6 @@ class ImageQualityAnalyzer:
             "场景复杂度": scene_complexity
         }
     
-    def _analyze_with_pil(self, image_path: str) -> Dict:
-        """
-        使用 PIL 进行基础分析（OpenCV 不可用时的降级方案）
-        """
-        try:
-            # 检查文件是否存在
-            if not Path(image_path).exists():
-                print(f"警告: 图片文件不存在: {image_path}")
-                raise FileNotFoundError(f"图片文件不存在: {image_path}")
-            
-            pil_img = Image.open(image_path).convert("RGB")
-            w, h = pil_img.size
-            img_array = np.array(pil_img)
-            
-            # 1. 图片数据量
-            file_size = Path(image_path).stat().st_size / (1024 * 1024)  # MB
-            pixel_count = h * w
-            resolution_score = min(100, (pixel_count / (1280 * 720)) * 100)
-            size_score = min(100, (file_size / 1.0) * 100)
-            if pixel_count >= 640 * 480 and file_size >= 0.5:
-                resolution_score = max(30, resolution_score)
-                size_score = max(30, size_score)
-            data_quantity = (resolution_score * 0.6 + size_score * 0.4)
-            
-            # 2. 拍摄光照质量（基于亮度）
-            brightness = np.mean(img_array)
-            lighting_quality = min(100, max(0, (brightness / 128.0) * 100))
-            
-            # 3-8. 其他维度使用基础估算（因为没有目标检测）
-            # 基于图片特征进行合理估算
-            contrast = np.std(img_array)
-            target_size = min(100, max(30, (contrast / 50.0) * 100))
-            target_completeness = 70.0  # 默认值
-            data_balance = 60.0  # 默认值
-            product_richness = 50.0  # 默认值
-            target_density = min(100, max(20, (pixel_count / 1000000) * 10))
-            scene_complexity = min(100, max(30, contrast / 2.0))
-            
-            return {
-                "图片数据量": data_quantity,
-                "拍摄光照质量": lighting_quality,
-                "目标尺寸": target_size,
-                "目标完整性": target_completeness,
-                "数据均衡度": data_balance,
-                "产品丰富度": product_richness,
-                "目标密集度": target_density,
-                "场景复杂度": scene_complexity
-            }
-        except Exception as e:
-            print(f"PIL 分析失败: {e}")
-            # 返回默认值，避免完全失败
-            return {
-                "图片数据量": 50.0,
-                "拍摄光照质量": 50.0,
-                "目标尺寸": 50.0,
-                "目标完整性": 50.0,
-                "数据均衡度": 50.0,
-                "产品丰富度": 50.0,
-                "目标密集度": 50.0,
-                "场景复杂度": 50.0
-            }
-    
     def analyze_batch(self, image_paths: List[str]) -> Dict:
         """
         批量分析多张图片
@@ -260,168 +127,27 @@ class ImageQualityAnalyzer:
         返回:
             包含所有图片分析结果的字典
         """
-        if not image_paths:
-            # 如果路径列表为空，返回默认结果而不是全0
-            default_scores = {dim: 50.0 for dim in self.dimensions}
-            return {
-                "individual_results": [],
-                "average_scores": default_scores,
-                "total_images": 0,
-                "total_annotations": 0
-            }
-        
         results = []
-        failed_count = 0
-        
         for img_path in image_paths:
-            img_path_str = str(img_path)  # 确保是字符串
-            img_path_obj = Path(img_path_str)
-            
-            # 尝试多种方式检查文件是否存在
-            file_exists = False
             try:
-                file_exists = img_path_obj.exists() and img_path_obj.is_file()
-            except Exception as e:
-                print(f"检查文件 {img_path_str} 时出错: {e}")
-            
-            # 如果 Path.exists() 失败，尝试直接打开文件
-            if not file_exists:
-                try:
-                    with open(img_path_str, 'rb') as f:
-                        f.read(1)  # 尝试读取一个字节
-                    file_exists = True
-                except (IOError, OSError, FileNotFoundError):
-                    file_exists = False
-            
-            if not file_exists:
-                print(f"警告: 图片文件不存在或无法访问: {img_path_str}")
-                failed_count += 1
-                # 即使文件不存在，也创建一个默认结果，避免完全失败
-                default_result = {
-                    'image_path': img_path_str,
-                    "图片数据量": 50.0,
-                    "拍摄光照质量": 50.0,
-                    "目标尺寸": 50.0,
-                    "目标完整性": 50.0,
-                    "数据均衡度": 50.0,
-                    "产品丰富度": 50.0,
-                    "目标密集度": 50.0,
-                    "场景复杂度": 50.0
-                }
-                results.append(default_result)
-                continue
-            
-            try:
-                result = self.analyze_single_image(img_path_str)
-                result['image_path'] = img_path_str
+                result = self.analyze_single_image(img_path)
+                result['image_path'] = img_path
                 results.append(result)
             except Exception as e:
-                import traceback
-                error_trace = traceback.format_exc()
-                print(f"分析图片 {img_path_str} 时出错: {e}")
-                print(f"详细错误: {error_trace}")
-                failed_count += 1
-                # 即使分析失败，也创建一个默认结果，避免完全失败
-                default_result = {
-                    'image_path': img_path_str,
-                    "图片数据量": 50.0,
-                    "拍摄光照质量": 50.0,
-                    "目标尺寸": 50.0,
-                    "目标完整性": 50.0,
-                    "数据均衡度": 50.0,
-                    "产品丰富度": 50.0,
-                    "目标密集度": 50.0,
-                    "场景复杂度": 50.0
-                }
-                results.append(default_result)
+                print(f"分析图片 {img_path} 时出错: {e}")
+                continue
         
-        # 确保至少有一个结果
-        if not results:
-            print(f"严重警告: 所有 {len(image_paths)} 张图片分析都失败，返回默认结果")
-            results = [{
-                'image_path': str(image_paths[0]) if image_paths else "unknown",
-                "图片数据量": 50.0,
-                "拍摄光照质量": 50.0,
-                "目标尺寸": 50.0,
-                "目标完整性": 50.0,
-                "数据均衡度": 50.0,
-                "产品丰富度": 50.0,
-                "目标密集度": 50.0,
-                "场景复杂度": 50.0
-            }]
-        
-        # 计算平均维度分数 - 确保所有维度都有值
+        # 计算平均维度分数
         avg_scores = {}
         for dim in self.dimensions:
-            scores = [r.get(dim, 50.0) for r in results if dim in r or dim in r]
-            avg_scores[dim] = np.mean(scores) if scores else 50.0  # 默认50而不是0
-        
-        # 确保所有维度都有值，即使没有结果
-        for dim in self.dimensions:
-            if dim not in avg_scores:
-                avg_scores[dim] = 50.0
-        
-        print(f"分析完成: 成功 {len(results) - failed_count}/{len(image_paths)}, 失败 {failed_count}")
-        print(f"平均分数: {avg_scores}")
-        
-        # 计算总标注数（需要读取图片进行检测）
-        total_annotations = 0
-        for r in results:
-            try:
-                # 尝试从 image_path 读取图片进行检测
-                img_path = r.get('image_path', '')
-                if img_path and Path(img_path).exists():
-                    detections = self._detect_objects(img_path)
-                    total_annotations += len(detections)
-            except:
-                pass
-        
-        # 确保返回有效结果 - 关键修复：即使所有分析失败，也要为每张图片创建结果
-        if len(results) < len(image_paths):
-            # 如果结果数量少于图片数量，为缺失的图片创建默认结果
-            processed_paths = {r.get('image_path', '') for r in results}
-            for img_path in image_paths:
-                img_path_str = str(img_path)
-                if img_path_str not in processed_paths:
-                    default_result = {
-                        'image_path': img_path_str,
-                        "图片数据量": 50.0,
-                        "拍摄光照质量": 50.0,
-                        "目标尺寸": 50.0,
-                        "目标完整性": 50.0,
-                        "数据均衡度": 50.0,
-                        "产品丰富度": 50.0,
-                        "目标密集度": 50.0,
-                        "场景复杂度": 50.0
-                    }
-                    results.append(default_result)
-        
-        # 如果完全没有结果，至少返回一个默认结果
-        if not results and image_paths:
-            print(f"严重警告: 所有 {len(image_paths)} 张图片分析都失败，为每张图片创建默认结果")
-            results = [{
-                'image_path': str(img_path),
-                "图片数据量": 50.0,
-                "拍摄光照质量": 50.0,
-                "目标尺寸": 50.0,
-                "目标完整性": 50.0,
-                "数据均衡度": 50.0,
-                "产品丰富度": 50.0,
-                "目标密集度": 50.0,
-                "场景复杂度": 50.0
-            } for img_path in image_paths]
-            avg_scores = {dim: 50.0 for dim in self.dimensions}
-        
-        # 确保 total_images 等于图片数量，而不是结果数量
-        total_images = len(image_paths) if image_paths else len(results)
-        
-        print(f"最终结果: total_images={total_images}, results数量={len(results)}, 图片路径数量={len(image_paths) if image_paths else 0}")
+            scores = [r[dim] for r in results if dim in r]
+            avg_scores[dim] = np.mean(scores) if scores else 0.0
         
         return {
             "individual_results": results,
             "average_scores": avg_scores,
-            "total_images": total_images,  # 使用图片数量，而不是结果数量
-            "total_annotations": total_annotations
+            "total_images": len(results),
+            "total_annotations": sum(len(self._detect_objects(r['image_path'])) for r in results)
         }
     
     def _calculate_data_quantity(self, image_path: str, height: int, width: int) -> float:
@@ -445,11 +171,6 @@ class ImageQualityAnalyzer:
     def _calculate_lighting_quality(self, img: np.ndarray) -> float:
         """计算拍摄光照质量维度 (0-100) - VisDrone优化：放宽标准"""
         # 转换为HSV色彩空间
-        cv2 = _get_cv2()
-        if cv2 is None:
-            # 如果 OpenCV 不可用，使用 PIL 计算基础亮度
-            brightness = np.mean(img)
-            return min(100, max(20, (brightness / 128.0) * 100))
         hsv = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
         v_channel = hsv[:, :, 2]  # 亮度通道
         
@@ -473,86 +194,29 @@ class ImageQualityAnalyzer:
         # 最低保证20分（VisDrone数据集通常光照不理想）
         return max(20, min(100, final_score))
     
-    def _detect_objects(self, image_path_or_img) -> List[Dict]:
+    def _detect_objects(self, img: np.ndarray) -> List[Dict]:
         """使用YOLO检测目标"""
-        if self.detector is None:
-            print("⚠️ YOLO 检测器未初始化，无法进行目标检测")
-            return []
-        
         try:
-            # 如果传入的是路径字符串，需要读取图片
-            if isinstance(image_path_or_img, str):
-                cv2 = _get_cv2()
-                if cv2 is None:
-                    # 如果 OpenCV 不可用，尝试用 PIL 读取
-                    try:
-                        pil_img = Image.open(image_path_or_img).convert("RGB")
-                        img = np.array(pil_img)
-                        # PIL 返回 RGB，YOLO 需要 RGB 或 BGR
-                        img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR) if cv2 else img
-                    except Exception as pil_error:
-                        print(f"⚠️ 无法读取图片 {image_path_or_img}: {pil_error}")
-                        return []
-                else:
-                    img = cv2.imread(image_path_or_img)
-                    if img is None:
-                        # 如果 cv2.imread 失败，尝试用 PIL
-                        try:
-                            pil_img = Image.open(image_path_or_img).convert("RGB")
-                            img = np.array(pil_img)
-                            img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
-                        except Exception as pil_error:
-                            print(f"⚠️ 无法读取图片 {image_path_or_img}: {pil_error}")
-                            return []
-            else:
-                img = image_path_or_img
-                # 确保是 numpy array
-                if not isinstance(img, np.ndarray):
-                    img = np.array(img)
-            
-            # 执行 YOLO 检测
-            results = self.detector(img, verbose=False, conf=0.25)  # 置信度阈值 0.25
+            results = self.detector(img, verbose=False)
             detections = []
-            
             for result in results:
-                if result.boxes is not None and len(result.boxes) > 0:
-                    boxes = result.boxes
-                    for box in boxes:
-                        try:
-                            cls_id = int(box.cls[0].item()) if hasattr(box.cls[0], 'item') else int(box.cls[0])
-                            confidence = float(box.conf[0].item()) if hasattr(box.conf[0], 'item') else float(box.conf[0])
-                            bbox = box.xyxy[0]
-                            if hasattr(bbox, 'cpu'):
-                                bbox = bbox.cpu().numpy().tolist()
-                            else:
-                                bbox = bbox.tolist() if hasattr(bbox, 'tolist') else list(bbox)
-                            
-                            detections.append({
-                                'class': cls_id,
-                                'confidence': confidence,
-                                'bbox': bbox  # [x1, y1, x2, y2]
-                            })
-                        except Exception as box_error:
-                            print(f"⚠️ 处理检测框时出错: {box_error}")
-                            continue
-            
-            if detections:
-                print(f"✅ 检测到 {len(detections)} 个目标")
+                boxes = result.boxes
+                for box in boxes:
+                    detections.append({
+                        'class': int(box.cls[0]),
+                        'confidence': float(box.conf[0]),
+                        'bbox': box.xyxy[0].cpu().numpy().tolist()  # [x1, y1, x2, y2]
+                    })
             return detections
-            
         except Exception as e:
-            import traceback
-            error_trace = traceback.format_exc()
-            print(f"❌ YOLO 目标检测出错: {e}")
-            print(f"详细错误: {error_trace}")
+            print(f"目标检测出错: {e}")
             return []
     
     def _calculate_target_size(self, img: np.ndarray) -> float:
         """计算目标尺寸维度 (0-100) - VisDrone优化：降低理想占比"""
         detections = self._detect_objects(img)
         if not detections:
-            # 如果没有检测到目标，返回较低分数（表示需要改进）
-            return 20.0
+            return 0.0
         
         h, w = img.shape[:2]
         total_area = h * w
@@ -579,8 +243,7 @@ class ImageQualityAnalyzer:
         """计算目标完整性维度 (0-100) - VisDrone优化：减少边缘惩罚"""
         detections = self._detect_objects(img)
         if not detections:
-            # 如果没有检测到目标，返回较低分数（表示需要改进）
-            return 20.0
+            return 0.0
         
         h, w = img.shape[:2]
         completeness_scores = []
@@ -612,8 +275,7 @@ class ImageQualityAnalyzer:
         """计算数据均衡度维度 (0-100) - VisDrone优化：保持但放宽"""
         detections = self._detect_objects(img)
         if not detections:
-            # 如果没有检测到目标，返回较低分数（表示需要改进）
-            return 20.0
+            return 0.0
         
         # 统计各类别的数量
         class_counts = {}
@@ -639,14 +301,11 @@ class ImageQualityAnalyzer:
     def _calculate_product_richness(self, img: np.ndarray) -> float:
         """计算产品丰富度维度 (0-100) - VisDrone优化：降低理想类别数"""
         detections = self._detect_objects(img)
-        if not detections:
-            # 如果没有检测到目标，返回较低分数（表示需要改进）
-            return 20.0
         unique_classes = len(set(det['class'] for det in detections))
         
         # VisDrone优化：理想情况降低为 3-6个不同类别（从5-10降低）
         if unique_classes == 0:
-            return 20.0  # 返回较低分数（表示需要改进）
+            return 0.0
         elif unique_classes <= 6:
             return (unique_classes / 6) * 100
         else:
@@ -659,8 +318,6 @@ class ImageQualityAnalyzer:
         num_targets = len(detections)
         
         if num_targets == 0:
-            # 如果没有检测到目标，返回较低分数（表示需要改进）
-            return 20.0
             return 0.0
         
         # 计算单位面积内的目标数量
