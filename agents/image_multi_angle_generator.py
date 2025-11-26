@@ -77,9 +77,9 @@ class ImageMultiAngleGenerator:
         
         # 延迟加载YOLO模型，避免在初始化时导入失败
         # 只在真正需要时才加载
-            
-            # COCO类别名称（YOLOv8默认使用COCO数据集）
-            self.class_names = [
+        
+        # COCO类别名称（YOLOv8默认使用COCO数据集）
+        self.class_names = [
                 'person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 'truck',
                 'boat', 'traffic light', 'fire hydrant', 'stop sign', 'parking meter', 'bench',
                 'bird', 'cat', 'dog', 'horse', 'sheep', 'cow', 'elephant', 'bear', 'zebra',
@@ -93,9 +93,9 @@ class ImageMultiAngleGenerator:
                 'refrigerator', 'book', 'clock', 'vase', 'scissors', 'teddy bear', 'hair drier',
                 'toothbrush'
             ]
-            
-            # 为每个类别分配颜色（BGR格式）
-            self.colors = self._generate_colors(len(self.class_names))
+        
+        # 为每个类别分配颜色（BGR格式）
+        self.colors = self._generate_colors(len(self.class_names))
 
     def _generate_colors(self, num_colors: int) -> List[tuple]:
         """生成不同颜色用于不同类别"""
@@ -105,6 +105,83 @@ class ImageMultiAngleGenerator:
             color = tuple(np.random.randint(0, 255, 3).tolist())
             colors.append(color)
         return colors
+    
+    def _generate_with_pil_fallback(
+        self,
+        input_image_path: str,
+        output_dir: str,
+        num_generations: int = 8,
+        transformations: List[str] = None
+    ) -> Dict:
+        """使用 PIL 降级方案生成图片（当 OpenCV 不可用时）"""
+        input_path = Path(input_image_path)
+        output_path = Path(output_dir)
+        output_path.mkdir(parents=True, exist_ok=True)
+        
+        if not input_path.exists():
+            raise FileNotFoundError(f"输入图片不存在: {input_image_path}")
+        
+        # 使用 PIL 打开图片
+        pil_img = Image.open(input_path)
+        img_array = np.array(pil_img)
+        h, w = img_array.shape[:2] if len(img_array.shape) == 2 else img_array.shape[:2]
+        
+        # 简单的变换列表（不依赖 OpenCV）
+        if transformations is None:
+            transformations = ['original', 'rotate_90', 'rotate_180', 'rotate_270', 
+                             'flip_horizontal', 'flip_vertical', 'crop_center', 'resize']
+        
+        selected_transforms = random.sample(transformations, min(num_generations, len(transformations)))
+        
+        generated_files = []
+        metadata = []
+        
+        for idx, transform_type in enumerate(selected_transforms, 1):
+            try:
+                if transform_type == 'original':
+                    transformed_img = pil_img.copy()
+                elif transform_type == 'rotate_90':
+                    transformed_img = pil_img.rotate(-90, expand=True)
+                elif transform_type == 'rotate_180':
+                    transformed_img = pil_img.rotate(180, expand=False)
+                elif transform_type == 'rotate_270':
+                    transformed_img = pil_img.rotate(90, expand=True)
+                elif transform_type == 'flip_horizontal':
+                    transformed_img = pil_img.transpose(Image.FLIP_LEFT_RIGHT)
+                elif transform_type == 'flip_vertical':
+                    transformed_img = pil_img.transpose(Image.FLIP_TOP_BOTTOM)
+                elif transform_type == 'crop_center':
+                    crop_size = min(w, h) // 2
+                    left = (w - crop_size) // 2
+                    top = (h - crop_size) // 2
+                    transformed_img = pil_img.crop((left, top, left + crop_size, top + crop_size))
+                elif transform_type == 'resize':
+                    new_size = (w // 2, h // 2)
+                    transformed_img = pil_img.resize(new_size, Image.Resampling.LANCZOS)
+                else:
+                    transformed_img = pil_img.copy()
+                
+                output_filename = f"generated_{idx:03d}_{transform_type}.jpg"
+                output_file = output_path / output_filename
+                transformed_img.save(str(output_file), 'JPEG', quality=95)
+                
+                generated_files.append(str(output_file))
+                metadata.append({
+                    'index': idx,
+                    'transform_type': transform_type,
+                    'file_path': str(output_file)
+                })
+            except Exception as e:
+                print(f"生成 {transform_type} 失败: {e}")
+                continue
+        
+        return {
+            'success': True,
+            'num_generated': len(generated_files),
+            'generated_files': generated_files,
+            'metadata': metadata,
+            'confidence_statistics': {}
+        }
 
     def generate_multi_angle_images(
         self,
@@ -119,11 +196,9 @@ class ImageMultiAngleGenerator:
         # 延迟导入 OpenCV
         cv2 = _get_cv2()
         if cv2 is None:
-            raise RuntimeError(
-                "OpenCV (cv2) is not available. This feature requires OpenCV. "
-                "Please ensure 'opencv-python-headless' is installed. "
-                "Note: Some system libraries may be required on Linux systems."
-            )
+            # 使用 PIL 降级方案，至少能生成图片（不带检测框）
+            st.warning("⚠️ OpenCV 不可用，将使用 PIL 进行图片处理（检测框功能将不可用）")
+            return self._generate_with_pil_fallback(input_image_path, output_dir, num_generations, transformations)
         
         input_path = Path(input_image_path)
         output_path = Path(output_dir)
