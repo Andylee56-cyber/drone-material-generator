@@ -410,6 +410,12 @@ class ImageQualityAnalyzer:
     
     def _calculate_scene_complexity(self, img: np.ndarray) -> float:
         """计算场景复杂度维度 (0-100) - VisDrone优化：稍微放宽"""
+        cv2 = _get_cv2()
+        if cv2 is None:
+            # 如果 OpenCV 不可用，使用基础复杂度计算
+            contrast = np.std(img)
+            return min(100, max(30, contrast / 2.0))
+        
         # 转换为灰度图
         gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
         
