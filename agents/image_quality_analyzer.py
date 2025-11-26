@@ -18,17 +18,36 @@ _cv2_available = None
 _cv2 = None
 
 def _get_cv2():
-    """延迟导入 OpenCV，如果失败返回 None"""
+    """延迟导入 OpenCV，强制使用 headless 模式，忽略 libGL 错误"""
     global _cv2_available, _cv2
     if _cv2_available is None:
         try:
+            # 设置环境变量避免 OpenGL 依赖（必须在导入前设置）
+            import os
+            os.environ['OPENCV_DISABLE_OPENCL'] = '1'
+            os.environ['QT_QPA_PLATFORM'] = 'offscreen'
+            os.environ['DISPLAY'] = ''
+            os.environ['LIBGL_ALWAYS_SOFTWARE'] = '1'
+            
             import cv2
+            # 测试基本功能
+            _ = cv2.__version__
             _cv2 = cv2
             _cv2_available = True
+            print("✅ OpenCV 在分析器中加载成功")
         except (ImportError, OSError) as e:
-            # OSError 包括 libGL.so.1 缺失等系统库问题
-            _cv2_available = False
-            print(f"警告: OpenCV 导入失败: {e}")
+            # 即使有 libGL 错误，也尝试继续使用（headless 版本不需要 libGL）
+            if 'libGL' in str(e) or 'libGL.so' in str(e):
+                print(f"⚠️ 检测到 libGL 警告，但继续使用 OpenCV: {e}")
+                try:
+                    import cv2
+                    _cv2 = cv2
+                    _cv2_available = True
+                except:
+                    _cv2_available = False
+            else:
+                _cv2_available = False
+                print(f"警告: OpenCV 导入失败: {e}")
     return _cv2 if _cv2_available else None
 from PIL import Image
 import torch
@@ -83,8 +102,23 @@ class ImageQualityAnalyzer:
         # 延迟导入 OpenCV
         cv2 = _get_cv2()
         if cv2 is None:
-            # 如果 OpenCV 不可用，使用 PIL 降级方案
-            return self._analyze_with_pil(image_path)
+            # 最后一次尝试：直接导入，忽略 libGL 错误
+            try:
+                import os
+                os.environ['OPENCV_DISABLE_OPENCL'] = '1'
+                os.environ['QT_QPA_PLATFORM'] = 'offscreen'
+                os.environ['DISPLAY'] = ''
+                os.environ['LIBGL_ALWAYS_SOFTWARE'] = '1'
+                import cv2
+                print("✅ OpenCV 在分析单张图片时成功加载")
+            except Exception as e:
+                # 即使有 libGL 错误，也尝试继续使用
+                if 'libGL' in str(e) or 'libGL.so' in str(e):
+                    print(f"⚠️ 忽略 libGL 错误，继续使用 OpenCV: {e}")
+                    import cv2
+                else:
+                    # 如果 OpenCV 真的不可用，使用 PIL 降级方案
+                    return self._analyze_with_pil(image_path)
         
         # 读取图片
         img = cv2.imread(image_path)

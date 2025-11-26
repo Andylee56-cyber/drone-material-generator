@@ -10,7 +10,7 @@ _cv2_available = None
 _cv2 = None
 
 def _get_cv2():
-    """延迟导入 OpenCV，如果失败返回 None"""
+    """延迟导入 OpenCV，强制使用 headless 模式"""
     global _cv2_available, _cv2
     if _cv2_available is None:
         try:
@@ -18,44 +18,39 @@ def _get_cv2():
             import os
             os.environ['OPENCV_DISABLE_OPENCL'] = '1'
             os.environ['QT_QPA_PLATFORM'] = 'offscreen'
-            # 尝试导入 OpenCV
-            import cv2
-            # 禁用 OpenGL 相关功能
+            os.environ['DISPLAY'] = ''
+            os.environ['LIBGL_ALWAYS_SOFTWARE'] = '1'
+            
+            # 尝试导入 opencv-python-headless（不依赖 GUI）
             try:
-                cv2.setUseOpenVX(False)
-            except:
-                pass
-            _cv2 = cv2
-            _cv2_available = True
-        except (ImportError, OSError, AttributeError) as e:
-            # OSError 包括 libGL.so.1 缺失等系统库问题
-            # 尝试强制使用 headless 模式
+                import cv2
+                # 测试基本功能是否可用
+                _ = cv2.__version__
+                _cv2 = cv2
+                _cv2_available = True
+                print("✅ OpenCV 加载成功")
+            except (OSError, AttributeError) as e:
+                # 即使有 libGL 错误，也尝试继续（headless 版本应该不需要）
+                if 'libGL' in str(e) or 'libGL.so' in str(e):
+                    # libGL 错误不应该阻止 OpenCV 使用（headless 模式）
+                    print(f"⚠️ 检测到 libGL 警告，但继续使用 OpenCV: {e}")
+                    import cv2
+                    _cv2 = cv2
+                    _cv2_available = True
+                else:
+                    raise
+        except Exception as e:
+            # 如果还是失败，尝试最后一次导入
             try:
                 import os
                 os.environ['OPENCV_DISABLE_OPENCL'] = '1'
                 os.environ['QT_QPA_PLATFORM'] = 'offscreen'
-                # 尝试直接导入，忽略 OpenGL 错误
-                import sys
-                import importlib.util
-                spec = importlib.util.find_spec("cv2")
-                if spec is not None:
-                    # 尝试导入但忽略运行时错误
-                    try:
-                        import cv2
-                        _cv2 = cv2
-                        _cv2_available = True
-                    except (OSError, AttributeError):
-                        # 即使有 OSError，也尝试继续使用
-                        # 某些 OpenCV 功能可能仍然可用
-                        try:
-                            import cv2
-                            _cv2 = cv2
-                            _cv2_available = True
-                        except:
-                            _cv2_available = False
-                else:
-                    _cv2_available = False
-            except Exception:
+                import cv2
+                _cv2 = cv2
+                _cv2_available = True
+                print(f"✅ OpenCV 在第二次尝试后加载成功")
+            except Exception as e2:
+                print(f"❌ OpenCV 导入失败: {e2}")
                 _cv2_available = False
     return _cv2 if _cv2_available else None
 from PIL import Image, ImageDraw, ImageFont
@@ -218,11 +213,25 @@ class ImageMultiAngleGenerator:
         # 延迟导入 OpenCV
         cv2 = _get_cv2()
         if cv2 is None:
-            # 如果 OpenCV 不可用，使用 PIL 降级方案
-            print("⚠️ OpenCV 不可用，使用 PIL 降级方案生成图片（无检测框和高级变换）")
-            return self._generate_with_pil_fallback(
-                input_image_path, output_dir, num_generations, transformations
-            )
+            # 最后一次尝试：直接导入，忽略 libGL 错误
+            try:
+                import os
+                os.environ['OPENCV_DISABLE_OPENCL'] = '1'
+                os.environ['QT_QPA_PLATFORM'] = 'offscreen'
+                os.environ['DISPLAY'] = ''
+                os.environ['LIBGL_ALWAYS_SOFTWARE'] = '1'
+                import cv2
+                print("✅ OpenCV 在方法内成功加载")
+            except Exception as e:
+                # 即使有 libGL 错误，也尝试继续使用
+                if 'libGL' in str(e) or 'libGL.so' in str(e):
+                    print(f"⚠️ 忽略 libGL 错误，继续使用 OpenCV: {e}")
+                    import cv2
+                else:
+                    raise RuntimeError(
+                        f"OpenCV (cv2) 无法加载。错误: {e}. "
+                        "请确保 opencv-python-headless 已正确安装。"
+                    )
         
         input_path = Path(input_image_path)
         output_path = Path(output_dir)

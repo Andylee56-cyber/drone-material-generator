@@ -29,12 +29,16 @@ else:
 # 推理时不需要梯度（节省内存）
 torch.set_grad_enabled(False)
 
-# 设置环境变量避免 OpenGL 依赖（必须在导入前设置）
+# 设置环境变量避免 OpenGL 依赖（必须在导入前设置，最早执行）
 import os
+# 必须在任何导入前设置这些环境变量
 os.environ['OPENCV_DISABLE_OPENCL'] = '1'
 os.environ['QT_QPA_PLATFORM'] = 'offscreen'
 os.environ['DISPLAY'] = ''
 os.environ['LIBGL_ALWAYS_SOFTWARE'] = '1'
+# 尝试设置更多环境变量
+os.environ['OPENCV_IO_ENABLE_OPENEXR'] = '0'
+os.environ['OPENCV_IO_ENABLE_GDAL'] = '0'
 
 try:
     project_root = Path(__file__).resolve().parents[2]
