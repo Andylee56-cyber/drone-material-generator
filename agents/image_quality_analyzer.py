@@ -572,7 +572,7 @@ class ImageQualityAnalyzer:
         
         # VisDrone优化：理想情况降低为 3-6个不同类别（从5-10降低）
         if unique_classes == 0:
-            return 0.0
+            return 50.0  # 返回中等分数而不是0
         elif unique_classes <= 6:
             return (unique_classes / 6) * 100
         else:
