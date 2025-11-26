@@ -71,19 +71,37 @@ class ImageQualityAnalyzer:
         返回:
             包含8个维度分数的字典
         """
-        # 读取图片 - 使用延迟加载的 cv2
-        cv2 = _get_cv2()
-        if cv2 is None:
-            # 如果 OpenCV 不可用，使用 PIL 降级方案
-            return self._analyze_with_pil(image_path)
+        # 确保路径是字符串
+        image_path = str(image_path)
         
-        img = cv2.imread(image_path)
-        if img is None:
-            # 如果 cv2.imread 失败，尝试用 PIL 读取
-            return self._analyze_with_pil(image_path)
-        
-        img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        h, w = img.shape[:2]
+        # 先尝试用 PIL 读取（更可靠）
+        try:
+            pil_img = Image.open(image_path).convert("RGB")
+            img_array = np.array(pil_img)
+            h, w = pil_img.size[1], pil_img.size[0]  # PIL 返回 (width, height)
+            
+            # 读取图片 - 使用延迟加载的 cv2
+            cv2 = _get_cv2()
+            if cv2 is None:
+                # 如果 OpenCV 不可用，使用 PIL 降级方案
+                return self._analyze_with_pil(image_path)
+            
+            # 转换 PIL 图像为 OpenCV 格式
+            img = cv2.cvtColor(img_array, cv2.COLOR_RGB2BGR)
+            img_rgb = img_array  # 已经是 RGB
+        except Exception as e:
+            print(f"读取图片 {image_path} 失败: {e}")
+            # 如果 PIL 也失败，尝试 OpenCV
+            cv2 = _get_cv2()
+            if cv2 is None:
+                raise ValueError(f"无法读取图片 {image_path}: OpenCV 和 PIL 都不可用")
+            
+            img = cv2.imread(image_path)
+            if img is None:
+                raise ValueError(f"无法读取图片 {image_path}: cv2.imread 返回 None")
+            
+            img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            h, w = img.shape[:2]
         
         # 1. 图片数据量 (基于图片分辨率和文件大小)
         data_quantity = self._calculate_data_quantity(image_path, h, w)
@@ -192,17 +210,44 @@ class ImageQualityAnalyzer:
         返回:
             包含所有图片分析结果的字典
         """
+        if not image_paths:
+            # 如果路径列表为空，返回空结果
+            return {
+                "individual_results": [],
+                "average_scores": {dim: 0.0 for dim in self.dimensions},
+                "total_images": 0,
+                "total_annotations": 0
+            }
+        
         results = []
         failed_count = 0
         
         for img_path in image_paths:
-            # 检查文件是否存在
-            if not Path(img_path).exists():
-                print(f"警告: 图片文件不存在: {img_path}")
+            img_path_str = str(img_path)  # 确保是字符串
+            img_path_obj = Path(img_path_str)
+            
+            # 尝试多种方式检查文件是否存在
+            file_exists = False
+            try:
+                file_exists = img_path_obj.exists() and img_path_obj.is_file()
+            except Exception as e:
+                print(f"检查文件 {img_path_str} 时出错: {e}")
+            
+            # 如果 Path.exists() 失败，尝试直接打开文件
+            if not file_exists:
+                try:
+                    with open(img_path_str, 'rb') as f:
+                        f.read(1)  # 尝试读取一个字节
+                    file_exists = True
+                except (IOError, OSError, FileNotFoundError):
+                    file_exists = False
+            
+            if not file_exists:
+                print(f"警告: 图片文件不存在或无法访问: {img_path_str}")
                 failed_count += 1
                 # 即使文件不存在，也创建一个默认结果，避免完全失败
                 default_result = {
-                    'image_path': img_path,
+                    'image_path': img_path_str,
                     "图片数据量": 50.0,
                     "拍摄光照质量": 50.0,
                     "目标尺寸": 50.0,
@@ -216,15 +261,18 @@ class ImageQualityAnalyzer:
                 continue
             
             try:
-                result = self.analyze_single_image(img_path)
-                result['image_path'] = img_path
+                result = self.analyze_single_image(img_path_str)
+                result['image_path'] = img_path_str
                 results.append(result)
             except Exception as e:
-                print(f"分析图片 {img_path} 时出错: {e}")
+                import traceback
+                error_trace = traceback.format_exc()
+                print(f"分析图片 {img_path_str} 时出错: {e}")
+                print(f"详细错误: {error_trace}")
                 failed_count += 1
                 # 即使分析失败，也创建一个默认结果，避免完全失败
                 default_result = {
-                    'image_path': img_path,
+                    'image_path': img_path_str,
                     "图片数据量": 50.0,
                     "拍摄光照质量": 50.0,
                     "目标尺寸": 50.0,
@@ -236,11 +284,11 @@ class ImageQualityAnalyzer:
                 }
                 results.append(default_result)
         
-        # 如果所有图片都失败了，至少返回一个结果
-        if not results and image_paths:
-            print("警告: 所有图片分析都失败，返回默认结果")
+        # 确保至少有一个结果
+        if not results:
+            print(f"严重警告: 所有 {len(image_paths)} 张图片分析都失败，返回默认结果")
             results = [{
-                'image_path': image_paths[0],
+                'image_path': str(image_paths[0]) if image_paths else "unknown",
                 "图片数据量": 50.0,
                 "拍摄光照质量": 50.0,
                 "目标尺寸": 50.0,
@@ -256,6 +304,8 @@ class ImageQualityAnalyzer:
         for dim in self.dimensions:
             scores = [r[dim] for r in results if dim in r]
             avg_scores[dim] = np.mean(scores) if scores else 50.0  # 默认50而不是0
+        
+        print(f"分析完成: 成功 {len(results) - failed_count}/{len(image_paths)}, 失败 {failed_count}")
         
         # 计算总标注数（需要读取图片进行检测）
         total_annotations = 0
