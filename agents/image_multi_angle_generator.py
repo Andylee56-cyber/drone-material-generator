@@ -42,8 +42,21 @@ from typing import List, Dict, Optional
 import random
 from datetime import datetime
 import math
-from ultralytics import YOLO
 import torch
+
+# 延迟导入 YOLO，避免 ultralytics 在模块级别导入 cv2
+_YOLO = None
+def _get_yolo():
+    """延迟导入 YOLO"""
+    global _YOLO
+    if _YOLO is None:
+        try:
+            from ultralytics import YOLO as _YOLO_CLS
+            _YOLO = _YOLO_CLS
+        except Exception as e:
+            # 如果导入失败，返回 None
+            return None
+    return _YOLO
 
 
 class ImageMultiAngleGenerator:
@@ -59,13 +72,11 @@ class ImageMultiAngleGenerator:
         """
         self.supported_formats = {'.jpg', '.jpeg', '.png', '.bmp'}
         self.draw_boxes = draw_boxes
+        self.detector = None
+        self.yolo_model_path = yolo_model_path
         
-        # 加载YOLO模型用于目标检测
-        if draw_boxes:
-            if yolo_model_path and Path(yolo_model_path).exists():
-                self.detector = YOLO(yolo_model_path)
-            else:
-                self.detector = YOLO('yolov8n.pt')
+        # 延迟加载YOLO模型，避免在初始化时导入失败
+        # 只在真正需要时才加载
             
             # COCO类别名称（YOLOv8默认使用COCO数据集）
             self.class_names = [
@@ -231,6 +242,20 @@ class ImageMultiAngleGenerator:
         if cv2 is None:
             # 如果 OpenCV 不可用，返回原图和空检测结果
             return img, []
+        
+        # 延迟加载 YOLO 模型
+        if self.detector is None:
+            YOLO = _get_yolo()
+            if YOLO is None:
+                return img, []
+            try:
+                if self.yolo_model_path and Path(self.yolo_model_path).exists():
+                    self.detector = YOLO(self.yolo_model_path)
+                else:
+                    self.detector = YOLO('yolov8n.pt')
+            except Exception as e:
+                # 如果加载失败，返回原图
+                return img, []
         
         try:
             results = self.detector(img, verbose=False, conf=0.25)
