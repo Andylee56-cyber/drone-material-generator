@@ -363,11 +363,16 @@ if uploaded_file is not None:
                         status_text.text("步骤2/2: 正在分析生成的素材...")
                         if st.session_state.agent is None:
                             st.warning("⚠️ 分析器不可用，跳过分析步骤。")
+                            st.session_state.analysis_results = None
                         else:
-                            analysis_result = st.session_state.agent.analyze_and_evaluate(
-                                result['generated_files']
-                            )
-                        st.session_state.analysis_results = analysis_result
+                            try:
+                                analysis_result = st.session_state.agent.analyze_and_evaluate(
+                                    result['generated_files']
+                                )
+                                st.session_state.analysis_results = analysis_result
+                            except Exception as e:
+                                st.error(f"分析失败: {e}")
+                                st.session_state.analysis_results = None
                         progress_bar.progress(100)
                         status_text.text("✅ 分析完成！")
                     else:
@@ -461,7 +466,14 @@ if uploaded_file is not None:
         st.markdown("---")
         st.subheader("📊 8维度雷达图分析")
         avg_scores = st.session_state.analysis_results['analysis']['average_scores']
-        overall_quality = st.session_state.analysis_results['recommendations']['overall_quality']
+        
+        # 安全获取 overall_quality，如果不存在则计算平均值
+        recommendations = st.session_state.analysis_results.get('recommendations', {})
+        if 'overall_quality' in recommendations:
+            overall_quality = recommendations['overall_quality']
+        else:
+            # 如果没有 overall_quality，从平均分计算
+            overall_quality = np.mean(list(avg_scores.values())) if avg_scores else 0.0
 
         # 判断是否需要增强训练
         needs_enhancement = overall_quality < 50.0  # VisDrone数据集标准降低
