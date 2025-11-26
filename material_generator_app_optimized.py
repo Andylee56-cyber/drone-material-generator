@@ -48,15 +48,6 @@ os.environ['DISPLAY'] = ''
 os.environ['LIBGL_ALWAYS_SOFTWARE'] = '1'
 
 # 延迟导入 agents，如果失败显示友好错误
-# 先确保 numpy 正确导入
-try:
-    import numpy as np
-    # 测试 numpy 核心功能
-    _ = np.array([1, 2, 3])
-except Exception as e:
-    st.error(f"NumPy import failed: {e}")
-    st.stop()
-
 try:
     from agents.image_multi_angle_generator import ImageMultiAngleGenerator
     from agents.image_quality_analyzer import ImageQualityAnalyzer
@@ -101,21 +92,18 @@ else:
 def get_generator(draw_boxes=True):
     """获取生成器，只初始化一次，自动使用GPU"""
     if not AGENTS_AVAILABLE:
-        raise RuntimeError(f"Cannot create generator: {IMPORT_ERROR}")
+        # 返回占位对象，允许应用启动
+        class PlaceholderGenerator:
+            def __init__(self):
+                self.draw_boxes = draw_boxes
+            def generate_multi_angle_images(self, *args, **kwargs):
+                raise RuntimeError(f"Generator unavailable: {IMPORT_ERROR}")
+        return PlaceholderGenerator()
     
     # 确保环境变量已设置
     import os
     os.environ['OPENCV_DISABLE_OPENCL'] = '1'
     os.environ['QT_QPA_PLATFORM'] = 'offscreen'
-    os.environ['DISPLAY'] = ''
-    os.environ['LIBGL_ALWAYS_SOFTWARE'] = '1'
-    
-    # 确保 numpy 可用
-    try:
-        import numpy as np
-        _ = np.array([1])
-    except Exception as e:
-        raise RuntimeError(f"NumPy not available: {e}")
     
     try:
         generator = ImageMultiAngleGenerator(draw_boxes=draw_boxes)
@@ -126,18 +114,14 @@ def get_generator(draw_boxes=True):
                 generator.model.eval()
         return generator
     except Exception as e:
-        # 重试一次，可能环境变量需要时间生效
-        import time
-        time.sleep(0.1)
-        try:
-            generator = ImageMultiAngleGenerator(draw_boxes=draw_boxes)
-            if hasattr(generator, 'model') and generator.model is not None:
-                if torch.cuda.is_available():
-                    generator.model = generator.model.to(device)
-                    generator.model.eval()
-            return generator
-        except Exception as e2:
-            raise RuntimeError(f"Failed to initialize generator: {e2}. Original error: {e}")
+        # 返回占位对象，允许应用启动
+        class PlaceholderGenerator:
+            def __init__(self, error_msg):
+                self.draw_boxes = draw_boxes
+                self._error = error_msg
+            def generate_multi_angle_images(self, *args, **kwargs):
+                raise RuntimeError(f"Generator initialization failed: {self._error}")
+        return PlaceholderGenerator(str(e))
 
 @st.cache_resource
 def get_agent():
