@@ -36,6 +36,11 @@ except IndexError:
     project_root = Path(__file__).resolve().parent
 sys.path.insert(0, str(project_root))
 
+# 设置环境变量避免 OpenGL 依赖（在导入前设置）
+import os
+os.environ['OPENCV_DISABLE_OPENCL'] = '1'
+os.environ['QT_QPA_PLATFORM'] = 'offscreen'
+
 # 延迟导入 agents，如果失败显示友好错误
 try:
     from agents.image_multi_angle_generator import ImageMultiAngleGenerator
@@ -43,6 +48,7 @@ try:
     from agents.material_generator_agent import MaterialGeneratorAgent
     from agents.material_enhancement_trainer import MaterialEnhancementTrainer
     AGENTS_AVAILABLE = True
+    IMPORT_ERROR = None
 except Exception as e:
     AGENTS_AVAILABLE = False
     IMPORT_ERROR = str(e)
@@ -50,6 +56,8 @@ except Exception as e:
     class ImageMultiAngleGenerator:
         def __init__(self, *args, **kwargs):
             pass
+        def generate_multi_angle_images(self, *args, **kwargs):
+            raise RuntimeError(f"ImageMultiAngleGenerator not available: {IMPORT_ERROR}")
     class ImageQualityAnalyzer:
         def __init__(self, *args, **kwargs):
             pass
@@ -77,6 +85,8 @@ else:
 @st.cache_resource
 def get_generator(draw_boxes=True):
     """获取生成器，只初始化一次，自动使用GPU"""
+    if not AGENTS_AVAILABLE:
+        raise RuntimeError(f"Cannot create generator: {IMPORT_ERROR}")
     try:
         generator = ImageMultiAngleGenerator(draw_boxes=draw_boxes)
         # 如果生成器有模型，移动到GPU
@@ -86,11 +96,7 @@ def get_generator(draw_boxes=True):
                 generator.model.eval()
         return generator
     except Exception as e:
-        # 即使失败也返回一个占位对象，避免应用崩溃
-        class FallbackGenerator:
-            def generate_multi_angle_images(self, *args, **kwargs):
-                return {'success': False, 'error': str(e), 'num_generated': 0, 'generated_files': []}
-        return FallbackGenerator()
+        raise RuntimeError(f"Failed to initialize generator: {e}")
 
 @st.cache_resource
 def get_agent():
@@ -294,31 +300,23 @@ if uploaded_file is not None:
 
                     status_text.text("步骤1/2: 正在生成多角度素材（带检测框）...")
                     
-                    # 尝试生成，如果 OpenCV 不可用会自动降级到 PIL
+                    # 使用完整功能生成
                     try:
                         result = st.session_state.generator.generate_multi_angle_images(
                             input_image_path=str(temp_path),
                             output_dir=str(output_dir),
                             num_generations=num_generations
                         )
-                        
-                        # 检查结果
-                        if not result.get('success', True):
-                            error_msg = result.get('error', '未知错误')
-                            st.warning(f"⚠️ 生成过程中遇到问题: {error_msg}")
-                            st.info("ℹ️ 尝试使用降级方案...")
-                            # 如果失败，尝试使用 PIL 降级方案
-                            if hasattr(st.session_state.generator, '_generate_with_pil_fallback'):
-                                result = st.session_state.generator._generate_with_pil_fallback(
-                                    str(temp_path), str(output_dir), num_generations, None
-                                )
-                        
-                        # 检查是否使用了降级方案
-                        if result.get('num_generated', 0) > 0 and not result.get('confidence_statistics'):
-                            st.info("ℹ️ 使用 PIL 降级方案生成图片（检测框功能不可用，但图片生成正常）")
+                    except RuntimeError as e:
+                        error_msg = str(e)
+                        if 'libGL.so.1' in error_msg or 'OpenCV' in error_msg:
+                            st.error(f"❌ OpenCV 系统依赖缺失: {error_msg}")
+                            st.info("💡 提示：Streamlit Cloud 环境可能缺少系统库。请检查 OpenCV 安装。")
+                        else:
+                            st.error(f"❌ 生成失败: {error_msg}")
+                        st.stop()
                     except Exception as e:
                         st.error(f"❌ 生成失败: {e}")
-                        st.info("💡 提示：这可能是由于 OpenCV 系统依赖问题。应用已启动，但某些功能可能受限。")
                         st.stop()
                     progress_bar.progress(50)
                     status_text.text(f"✅ 已生成 {result['num_generated']} 张素材")

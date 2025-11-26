@@ -14,27 +14,24 @@ def _get_cv2():
     global _cv2_available, _cv2
     if _cv2_available is None:
         try:
+            # 设置环境变量避免 OpenGL 依赖
+            import os
+            os.environ['OPENCV_DISABLE_OPENCL'] = '1'
+            # 尝试导入 OpenCV
             import cv2
             _cv2 = cv2
             _cv2_available = True
-        except ImportError:
+        except (ImportError, OSError) as e:
+            # OSError 包括 libGL.so.1 缺失等系统库问题
             try:
+                # 尝试备用导入方式
                 import cv2.cv2 as cv2
                 _cv2 = cv2
                 _cv2_available = True
-            except ImportError:
-                try:
-                    import sys
-                    import importlib.util
-                    spec = importlib.util.find_spec("cv2")
-                    if spec is not None:
-                        import cv2
-                        _cv2 = cv2
-                        _cv2_available = True
-                    else:
-                        _cv2_available = False
-                except Exception:
-                    _cv2_available = False
+            except (ImportError, OSError):
+                # 如果还是失败，标记为不可用
+                _cv2_available = False
+                print(f"Warning: OpenCV import failed: {e}")
     return _cv2 if _cv2_available else None
 from PIL import Image, ImageDraw, ImageFont
 from pathlib import Path
@@ -196,9 +193,11 @@ class ImageMultiAngleGenerator:
         # 延迟导入 OpenCV
         cv2 = _get_cv2()
         if cv2 is None:
-            # 使用 PIL 降级方案，至少能生成图片（不带检测框）
-            # 注意：这里不显示警告，让调用者处理
-            return self._generate_with_pil_fallback(input_image_path, output_dir, num_generations, transformations)
+            raise RuntimeError(
+                "OpenCV (cv2) is not available. This feature requires OpenCV with full functionality. "
+                "Error: libGL.so.1 or other system dependencies may be missing. "
+                "Please ensure OpenCV is properly installed with all dependencies."
+            )
         
         input_path = Path(input_image_path)
         output_path = Path(output_dir)
