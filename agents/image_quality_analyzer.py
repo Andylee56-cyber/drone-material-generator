@@ -61,14 +61,43 @@ class ImageQualityAnalyzer:
             try:
                 if yolo_model_path and Path(yolo_model_path).exists():
                     self.detector = YOLO_CLS(yolo_model_path)
+                    print(f"✅ YOLO 模型已加载: {yolo_model_path}")
                 else:
-                    # 使用预训练的YOLOv8n模型
-                    self.detector = YOLO_CLS('yolov8n.pt')
+                    # 使用预训练的YOLOv8n模型，自动下载
+                    print("📥 正在加载 YOLOv8n 模型（首次使用会自动下载）...")
+                    try:
+                        self.detector = YOLO_CLS('yolov8n.pt')
+                        print("✅ YOLOv8n 模型加载成功")
+                    except Exception as download_error:
+                        print(f"⚠️ YOLOv8n 模型下载失败: {download_error}")
+                        # 尝试使用 yolov8n-seg.pt 或其他模型
+                        try:
+                            print("📥 尝试使用备用模型...")
+                            self.detector = YOLO_CLS('yolov8s.pt')  # 尝试更大的模型
+                            print("✅ 备用模型加载成功")
+                        except Exception as backup_error:
+                            print(f"❌ 所有 YOLO 模型加载失败: {backup_error}")
+                            raise RuntimeError(f"无法加载 YOLO 模型。请检查网络连接或手动下载模型文件。错误: {backup_error}")
             except Exception as e:
-                print(f"警告: YOLO 模型加载失败: {e}，将使用无检测模式")
-                self.detector = None
+                error_msg = str(e)
+                print(f"❌ YOLO 模型初始化失败: {error_msg}")
+                # 如果是网络问题，给出明确提示
+                if 'download' in error_msg.lower() or 'network' in error_msg.lower() or 'connection' in error_msg.lower():
+                    raise RuntimeError(
+                        f"YOLO 模型下载失败。这通常是因为网络连接问题。\n"
+                        f"解决方案：\n"
+                        f"1. 检查网络连接\n"
+                        f"2. 手动下载 yolov8n.pt 到项目目录\n"
+                        f"3. 或使用代理/VPN\n"
+                        f"原始错误: {error_msg}"
+                    )
+                else:
+                    raise RuntimeError(f"YOLO 模型初始化失败: {error_msg}")
         else:
-            print("警告: YOLO 不可用，将使用无检测模式（部分维度可能不准确）")
+            raise RuntimeError(
+                "YOLO 库不可用。请确保已安装 ultralytics:\n"
+                "pip install ultralytics"
+            )
         
         # 8个维度的名称
         self.dimensions = [
@@ -446,39 +475,84 @@ class ImageQualityAnalyzer:
     
     def _detect_objects(self, image_path_or_img) -> List[Dict]:
         """使用YOLO检测目标"""
+        if self.detector is None:
+            print("⚠️ YOLO 检测器未初始化，无法进行目标检测")
+            return []
+        
         try:
             # 如果传入的是路径字符串，需要读取图片
             if isinstance(image_path_or_img, str):
                 cv2 = _get_cv2()
                 if cv2 is None:
-                    return []  # OpenCV 不可用，无法检测
-                img = cv2.imread(image_path_or_img)
-                if img is None:
-                    return []
+                    # 如果 OpenCV 不可用，尝试用 PIL 读取
+                    try:
+                        pil_img = Image.open(image_path_or_img).convert("RGB")
+                        img = np.array(pil_img)
+                        # PIL 返回 RGB，YOLO 需要 RGB 或 BGR
+                        img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR) if cv2 else img
+                    except Exception as pil_error:
+                        print(f"⚠️ 无法读取图片 {image_path_or_img}: {pil_error}")
+                        return []
+                else:
+                    img = cv2.imread(image_path_or_img)
+                    if img is None:
+                        # 如果 cv2.imread 失败，尝试用 PIL
+                        try:
+                            pil_img = Image.open(image_path_or_img).convert("RGB")
+                            img = np.array(pil_img)
+                            img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+                        except Exception as pil_error:
+                            print(f"⚠️ 无法读取图片 {image_path_or_img}: {pil_error}")
+                            return []
             else:
                 img = image_path_or_img
+                # 确保是 numpy array
+                if not isinstance(img, np.ndarray):
+                    img = np.array(img)
             
-            results = self.detector(img, verbose=False)
+            # 执行 YOLO 检测
+            results = self.detector(img, verbose=False, conf=0.25)  # 置信度阈值 0.25
             detections = []
+            
             for result in results:
-                boxes = result.boxes
-                for box in boxes:
-                    detections.append({
-                        'class': int(box.cls[0]),
-                        'confidence': float(box.conf[0]),
-                        'bbox': box.xyxy[0].cpu().numpy().tolist()  # [x1, y1, x2, y2]
-                    })
+                if result.boxes is not None and len(result.boxes) > 0:
+                    boxes = result.boxes
+                    for box in boxes:
+                        try:
+                            cls_id = int(box.cls[0].item()) if hasattr(box.cls[0], 'item') else int(box.cls[0])
+                            confidence = float(box.conf[0].item()) if hasattr(box.conf[0], 'item') else float(box.conf[0])
+                            bbox = box.xyxy[0]
+                            if hasattr(bbox, 'cpu'):
+                                bbox = bbox.cpu().numpy().tolist()
+                            else:
+                                bbox = bbox.tolist() if hasattr(bbox, 'tolist') else list(bbox)
+                            
+                            detections.append({
+                                'class': cls_id,
+                                'confidence': confidence,
+                                'bbox': bbox  # [x1, y1, x2, y2]
+                            })
+                        except Exception as box_error:
+                            print(f"⚠️ 处理检测框时出错: {box_error}")
+                            continue
+            
+            if detections:
+                print(f"✅ 检测到 {len(detections)} 个目标")
             return detections
+            
         except Exception as e:
-            print(f"目标检测出错: {e}")
+            import traceback
+            error_trace = traceback.format_exc()
+            print(f"❌ YOLO 目标检测出错: {e}")
+            print(f"详细错误: {error_trace}")
             return []
     
     def _calculate_target_size(self, img: np.ndarray) -> float:
         """计算目标尺寸维度 (0-100) - VisDrone优化：降低理想占比"""
         detections = self._detect_objects(img)
         if not detections:
-            # 如果没有检测到目标，返回中等分数而不是0
-            return 50.0
+            # 如果没有检测到目标，返回较低分数（表示需要改进）
+            return 20.0
         
         h, w = img.shape[:2]
         total_area = h * w
@@ -505,8 +579,8 @@ class ImageQualityAnalyzer:
         """计算目标完整性维度 (0-100) - VisDrone优化：减少边缘惩罚"""
         detections = self._detect_objects(img)
         if not detections:
-            # 如果没有检测到目标，返回中等分数而不是0
-            return 50.0
+            # 如果没有检测到目标，返回较低分数（表示需要改进）
+            return 20.0
         
         h, w = img.shape[:2]
         completeness_scores = []
@@ -538,8 +612,8 @@ class ImageQualityAnalyzer:
         """计算数据均衡度维度 (0-100) - VisDrone优化：保持但放宽"""
         detections = self._detect_objects(img)
         if not detections:
-            # 如果没有检测到目标，返回中等分数而不是0
-            return 50.0
+            # 如果没有检测到目标，返回较低分数（表示需要改进）
+            return 20.0
         
         # 统计各类别的数量
         class_counts = {}
@@ -566,13 +640,13 @@ class ImageQualityAnalyzer:
         """计算产品丰富度维度 (0-100) - VisDrone优化：降低理想类别数"""
         detections = self._detect_objects(img)
         if not detections:
-            # 如果没有检测到目标，返回中等分数而不是0
-            return 50.0
+            # 如果没有检测到目标，返回较低分数（表示需要改进）
+            return 20.0
         unique_classes = len(set(det['class'] for det in detections))
         
         # VisDrone优化：理想情况降低为 3-6个不同类别（从5-10降低）
         if unique_classes == 0:
-            return 50.0  # 返回中等分数而不是0
+            return 20.0  # 返回较低分数（表示需要改进）
         elif unique_classes <= 6:
             return (unique_classes / 6) * 100
         else:
@@ -585,8 +659,8 @@ class ImageQualityAnalyzer:
         num_targets = len(detections)
         
         if num_targets == 0:
-            # 如果没有检测到目标，返回中等分数而不是0
-            return 50.0
+            # 如果没有检测到目标，返回较低分数（表示需要改进）
+            return 20.0
             return 0.0
         
         # 计算单位面积内的目标数量
