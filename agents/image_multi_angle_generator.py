@@ -4,26 +4,38 @@
 """
 
 import numpy as np
-try:
-    import cv2
-except ImportError:
-    try:
-        import cv2.cv2 as cv2
-    except ImportError:
+
+# 延迟导入 OpenCV，避免在模块级别失败
+_cv2_available = None
+_cv2 = None
+
+def _get_cv2():
+    """延迟导入 OpenCV，如果失败返回 None"""
+    global _cv2_available, _cv2
+    if _cv2_available is None:
         try:
-            import sys
-            import importlib.util
-            # Try to find cv2 in site-packages
-            spec = importlib.util.find_spec("cv2")
-            if spec is None:
-                raise ImportError("cv2 module not found")
             import cv2
-        except Exception as e:
-            raise ImportError(
-                f"OpenCV (cv2) is not installed. Error: {e}. "
-                "Please ensure 'opencv-python-headless' is in requirements.txt. "
-                "If the error persists, try: pip install opencv-python-headless"
-            )
+            _cv2 = cv2
+            _cv2_available = True
+        except ImportError:
+            try:
+                import cv2.cv2 as cv2
+                _cv2 = cv2
+                _cv2_available = True
+            except ImportError:
+                try:
+                    import sys
+                    import importlib.util
+                    spec = importlib.util.find_spec("cv2")
+                    if spec is not None:
+                        import cv2
+                        _cv2 = cv2
+                        _cv2_available = True
+                    else:
+                        _cv2_available = False
+                except Exception:
+                    _cv2_available = False
+    return _cv2 if _cv2_available else None
 from PIL import Image, ImageDraw, ImageFont
 from pathlib import Path
 from typing import List, Dict, Optional
@@ -93,6 +105,15 @@ class ImageMultiAngleGenerator:
         """
         从单张图片生成多角度素材（真正的3D视角变换 + 检测框）
         """
+        # 延迟导入 OpenCV
+        cv2 = _get_cv2()
+        if cv2 is None:
+            raise RuntimeError(
+                "OpenCV (cv2) is not available. This feature requires OpenCV. "
+                "Please ensure 'opencv-python-headless' is installed. "
+                "Note: Some system libraries may be required on Linux systems."
+            )
+        
         input_path = Path(input_image_path)
         output_path = Path(output_dir)
         output_path.mkdir(parents=True, exist_ok=True)
@@ -147,7 +168,18 @@ class ImageMultiAngleGenerator:
                 
                 output_filename = f"generated_{idx:03d}_{transform_type}.jpg"
                 output_file = output_path / output_filename
-                cv2.imwrite(str(output_file), transformed_img, [cv2.IMWRITE_JPEG_QUALITY, 95])
+                
+                # 使用 OpenCV 保存，如果失败则使用 PIL
+                try:
+                    cv2.imwrite(str(output_file), transformed_img, [cv2.IMWRITE_JPEG_QUALITY, 95])
+                except Exception:
+                    # 降级方案：使用 PIL 保存
+                    if len(transformed_img.shape) == 3:
+                        # BGR to RGB
+                        pil_img = Image.fromarray(transformed_img[:, :, ::-1])
+                    else:
+                        pil_img = Image.fromarray(transformed_img)
+                    pil_img.save(str(output_file), 'JPEG', quality=95)
 
                 generated_files.append(str(output_file))
                 metadata.append({
@@ -195,6 +227,11 @@ class ImageMultiAngleGenerator:
         返回:
             (绘制后的图片, 检测结果列表)
         """
+        cv2 = _get_cv2()
+        if cv2 is None:
+            # 如果 OpenCV 不可用，返回原图和空检测结果
+            return img, []
+        
         try:
             results = self.detector(img, verbose=False, conf=0.25)
             detections = []
@@ -290,6 +327,11 @@ class ImageMultiAngleGenerator:
 
     def _apply_transformation(self, img: np.ndarray, transform_type: str, h: int, w: int) -> np.ndarray:
         """应用指定的3D视角变换"""
+        cv2 = _get_cv2()
+        if cv2 is None:
+            # 如果 OpenCV 不可用，返回原图
+            return img.copy()
+        
         result = img.copy()
         
         if transform_type == 'original':

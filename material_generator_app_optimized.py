@@ -36,12 +36,36 @@ except IndexError:
     project_root = Path(__file__).resolve().parent
 sys.path.insert(0, str(project_root))
 
-from agents.image_multi_angle_generator import ImageMultiAngleGenerator
-from agents.image_quality_analyzer import ImageQualityAnalyzer
-from agents.material_generator_agent import MaterialGeneratorAgent
-from agents.material_enhancement_trainer import MaterialEnhancementTrainer
+# 延迟导入 agents，如果失败显示友好错误
+try:
+    from agents.image_multi_angle_generator import ImageMultiAngleGenerator
+    from agents.image_quality_analyzer import ImageQualityAnalyzer
+    from agents.material_generator_agent import MaterialGeneratorAgent
+    from agents.material_enhancement_trainer import MaterialEnhancementTrainer
+    AGENTS_AVAILABLE = True
+except Exception as e:
+    AGENTS_AVAILABLE = False
+    IMPORT_ERROR = str(e)
+    # 创建占位类，避免后续代码报错
+    class ImageMultiAngleGenerator:
+        def __init__(self, *args, **kwargs):
+            pass
+    class ImageQualityAnalyzer:
+        def __init__(self, *args, **kwargs):
+            pass
+    class MaterialGeneratorAgent:
+        def __init__(self, *args, **kwargs):
+            pass
+    class MaterialEnhancementTrainer:
+        def __init__(self, *args, **kwargs):
+            pass
 
 st.set_page_config(page_title="无人机素材生成系统", page_icon="🚁", layout="wide", initial_sidebar_state="expanded")
+
+# 如果 agents 不可用，显示警告
+if not AGENTS_AVAILABLE:
+    st.error(f"⚠️ 部分功能暂时不可用。错误信息: {IMPORT_ERROR}")
+    st.info("💡 提示：这通常是因为 OpenCV 的系统依赖问题。应用已启动，但某些功能可能受限。")
 
 # 显示GPU状态（在页面配置之后）
 if torch.cuda.is_available():
@@ -53,35 +77,53 @@ else:
 @st.cache_resource
 def get_generator(draw_boxes=True):
     """获取生成器，只初始化一次，自动使用GPU"""
-    generator = ImageMultiAngleGenerator(draw_boxes=draw_boxes)
-    # 如果生成器有模型，移动到GPU
-    if hasattr(generator, 'model') and generator.model is not None:
-        if torch.cuda.is_available():
-            generator.model = generator.model.to(device)
-            generator.model.eval()
-    return generator
+    if not AGENTS_AVAILABLE:
+        return None
+    try:
+        generator = ImageMultiAngleGenerator(draw_boxes=draw_boxes)
+        # 如果生成器有模型，移动到GPU
+        if hasattr(generator, 'model') and generator.model is not None:
+            if torch.cuda.is_available():
+                generator.model = generator.model.to(device)
+                generator.model.eval()
+        return generator
+    except Exception as e:
+        st.error(f"初始化生成器失败: {e}")
+        return None
 
 @st.cache_resource
 def get_agent():
     """获取代理，只初始化一次，自动使用GPU"""
-    agent = MaterialGeneratorAgent()
-    # 如果代理有模型，移动到GPU
-    if hasattr(agent, 'model') and agent.model is not None:
-        if torch.cuda.is_available():
-            agent.model = agent.model.to(device)
-            agent.model.eval()
-    return agent
+    if not AGENTS_AVAILABLE:
+        return None
+    try:
+        agent = MaterialGeneratorAgent()
+        # 如果代理有模型，移动到GPU
+        if hasattr(agent, 'model') and agent.model is not None:
+            if torch.cuda.is_available():
+                agent.model = agent.model.to(device)
+                agent.model.eval()
+        return agent
+    except Exception as e:
+        st.error(f"初始化代理失败: {e}")
+        return None
 
 @st.cache_resource
 def get_enhancement_trainer():
     """获取增强训练器，只初始化一次，自动使用GPU"""
-    trainer = MaterialEnhancementTrainer()
-    # 如果训练器有模型，移动到GPU
-    if hasattr(trainer, 'model') and trainer.model is not None:
-        if torch.cuda.is_available():
-            trainer.model = trainer.model.to(device)
-            trainer.model.eval()
-    return trainer
+    if not AGENTS_AVAILABLE:
+        return None
+    try:
+        trainer = MaterialEnhancementTrainer()
+        # 如果训练器有模型，移动到GPU
+        if hasattr(trainer, 'model') and trainer.model is not None:
+            if torch.cuda.is_available():
+                trainer.model = trainer.model.to(device)
+                trainer.model.eval()
+        return trainer
+    except Exception as e:
+        st.error(f"初始化训练器失败: {e}")
+        return None
 
 # ========== 移动端优化 ==========
 st.markdown("""

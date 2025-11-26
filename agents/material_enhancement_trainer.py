@@ -2,25 +2,22 @@
 GPU加速版素材自动增强训练器（基于提升幅度评估）
 """
 import numpy as np
-try:
-    import cv2
-except ImportError:
-    try:
-        import cv2.cv2 as cv2
-    except ImportError:
+
+# 延迟导入 OpenCV
+_cv2_available = None
+_cv2 = None
+
+def _get_cv2():
+    """延迟导入 OpenCV，如果失败返回 None"""
+    global _cv2_available, _cv2
+    if _cv2_available is None:
         try:
-            import sys
-            import importlib.util
-            spec = importlib.util.find_spec("cv2")
-            if spec is None:
-                raise ImportError("cv2 module not found")
             import cv2
-        except Exception:
-            raise ImportError(
-                "OpenCV (cv2) is not installed. "
-                "Please ensure 'opencv-python-headless==4.5.4.62' is in requirements.txt. "
-                "If the error persists, try: pip install opencv-python-headless"
-            )
+            _cv2 = cv2
+            _cv2_available = True
+        except (ImportError, OSError):
+            _cv2_available = False
+    return _cv2 if _cv2_available else None
 from PIL import Image
 from pathlib import Path
 from typing import Dict, List, Optional
