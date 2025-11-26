@@ -86,7 +86,15 @@ else:
 def get_generator(draw_boxes=True):
     """获取生成器，只初始化一次，自动使用GPU"""
     if not AGENTS_AVAILABLE:
-        raise RuntimeError(f"Cannot create generator: {IMPORT_ERROR}")
+        # 创建一个占位生成器，允许应用启动
+        class PlaceholderGenerator:
+            def __init__(self):
+                self.draw_boxes = draw_boxes
+                self._error = IMPORT_ERROR
+            def generate_multi_angle_images(self, *args, **kwargs):
+                raise RuntimeError(f"Generator unavailable: {self._error}")
+        return PlaceholderGenerator()
+    
     try:
         generator = ImageMultiAngleGenerator(draw_boxes=draw_boxes)
         # 如果生成器有模型，移动到GPU
@@ -96,7 +104,14 @@ def get_generator(draw_boxes=True):
                 generator.model.eval()
         return generator
     except Exception as e:
-        raise RuntimeError(f"Failed to initialize generator: {e}")
+        # 即使初始化失败，也返回占位对象，避免应用崩溃
+        class PlaceholderGenerator:
+            def __init__(self, error_msg):
+                self.draw_boxes = draw_boxes
+                self._error = error_msg
+            def generate_multi_angle_images(self, *args, **kwargs):
+                raise RuntimeError(f"Generator initialization failed: {self._error}")
+        return PlaceholderGenerator(str(e))
 
 @st.cache_resource
 def get_agent():
@@ -112,7 +127,7 @@ def get_agent():
                 agent.model.eval()
         return agent
     except Exception as e:
-        st.error(f"初始化代理失败: {e}")
+        # 返回 None 而不是抛出错误，允许应用继续运行
         return None
 
 @st.cache_resource
@@ -129,7 +144,7 @@ def get_enhancement_trainer():
                 trainer.model.eval()
         return trainer
     except Exception as e:
-        st.error(f"初始化训练器失败: {e}")
+        # 返回 None 而不是抛出错误，允许应用继续运行
         return None
 
 # ========== 移动端优化 ==========
@@ -193,13 +208,28 @@ st.markdown("**功能**: 输入一张图片，自动生成多角度素材（带�
 st.markdown("**新增**: 质量较差素材自动增强训练功能")
 st.markdown("---")
 
-# 使用缓存的模型初始化
+# 使用缓存的模型初始化（延迟初始化，避免启动时失败）
 if 'generator' not in st.session_state:
-    st.session_state.generator = get_generator(draw_boxes=True)
+    try:
+        st.session_state.generator = get_generator(draw_boxes=True)
+    except Exception as e:
+        # 即使失败也创建占位对象，允许应用启动
+        class PlaceholderGenerator:
+            def generate_multi_angle_images(self, *args, **kwargs):
+                raise RuntimeError(f"Generator unavailable: {e}")
+        st.session_state.generator = PlaceholderGenerator()
+
 if 'agent' not in st.session_state:
-    st.session_state.agent = get_agent()
+    try:
+        st.session_state.agent = get_agent()
+    except Exception:
+        st.session_state.agent = None
+
 if 'enhancement_trainer' not in st.session_state:
-    st.session_state.enhancement_trainer = get_enhancement_trainer()
+    try:
+        st.session_state.enhancement_trainer = get_enhancement_trainer()
+    except Exception:
+        st.session_state.enhancement_trainer = None
 if 'generated_images' not in st.session_state:
     st.session_state.generated_images = []
 if 'analysis_results' not in st.session_state:
@@ -309,9 +339,10 @@ if uploaded_file is not None:
                         )
                     except RuntimeError as e:
                         error_msg = str(e)
-                        if 'libGL.so.1' in error_msg or 'OpenCV' in error_msg:
+                        if 'libGL.so.1' in error_msg or 'OpenCV' in error_msg or 'Generator unavailable' in error_msg:
                             st.error(f"❌ OpenCV 系统依赖缺失: {error_msg}")
-                            st.info("💡 提示：Streamlit Cloud 环境可能缺少系统库。请检查 OpenCV 安装。")
+                            st.warning("⚠️ 由于系统依赖问题，完整功能暂时不可用。")
+                            st.info("💡 提示：Streamlit Cloud 环境可能缺少系统库 libGL.so.1。这是平台限制，无法在应用内解决。")
                         else:
                             st.error(f"❌ 生成失败: {error_msg}")
                         st.stop()
