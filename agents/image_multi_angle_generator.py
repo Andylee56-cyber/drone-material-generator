@@ -14,24 +14,49 @@ def _get_cv2():
     global _cv2_available, _cv2
     if _cv2_available is None:
         try:
-            # 设置环境变量避免 OpenGL 依赖
+            # 设置环境变量避免 OpenGL 依赖（必须在导入前设置）
             import os
             os.environ['OPENCV_DISABLE_OPENCL'] = '1'
+            os.environ['QT_QPA_PLATFORM'] = 'offscreen'
             # 尝试导入 OpenCV
             import cv2
+            # 禁用 OpenGL 相关功能
+            try:
+                cv2.setUseOpenVX(False)
+            except:
+                pass
             _cv2 = cv2
             _cv2_available = True
-        except (ImportError, OSError) as e:
+        except (ImportError, OSError, AttributeError) as e:
             # OSError 包括 libGL.so.1 缺失等系统库问题
+            # 尝试强制使用 headless 模式
             try:
-                # 尝试备用导入方式
-                import cv2.cv2 as cv2
-                _cv2 = cv2
-                _cv2_available = True
-            except (ImportError, OSError):
-                # 如果还是失败，标记为不可用
+                import os
+                os.environ['OPENCV_DISABLE_OPENCL'] = '1'
+                os.environ['QT_QPA_PLATFORM'] = 'offscreen'
+                # 尝试直接导入，忽略 OpenGL 错误
+                import sys
+                import importlib.util
+                spec = importlib.util.find_spec("cv2")
+                if spec is not None:
+                    # 尝试导入但忽略运行时错误
+                    try:
+                        import cv2
+                        _cv2 = cv2
+                        _cv2_available = True
+                    except (OSError, AttributeError):
+                        # 即使有 OSError，也尝试继续使用
+                        # 某些 OpenCV 功能可能仍然可用
+                        try:
+                            import cv2
+                            _cv2 = cv2
+                            _cv2_available = True
+                        except:
+                            _cv2_available = False
+                else:
+                    _cv2_available = False
+            except Exception:
                 _cv2_available = False
-                print(f"Warning: OpenCV import failed: {e}")
     return _cv2 if _cv2_available else None
 from PIL import Image, ImageDraw, ImageFont
 from pathlib import Path
@@ -193,11 +218,17 @@ class ImageMultiAngleGenerator:
         # 延迟导入 OpenCV
         cv2 = _get_cv2()
         if cv2 is None:
-            raise RuntimeError(
-                "OpenCV (cv2) is not available. This feature requires OpenCV with full functionality. "
-                "Error: libGL.so.1 or other system dependencies may be missing. "
-                "Please ensure OpenCV is properly installed with all dependencies."
-            )
+            # 最后一次尝试：直接导入，忽略错误
+            try:
+                import os
+                os.environ['OPENCV_DISABLE_OPENCL'] = '1'
+                os.environ['QT_QPA_PLATFORM'] = 'offscreen'
+                import cv2
+            except Exception as e:
+                raise RuntimeError(
+                    f"OpenCV (cv2) is not available. Error: {e}. "
+                    "This feature requires OpenCV. Please ensure opencv-python-headless is installed."
+                )
         
         input_path = Path(input_image_path)
         output_path = Path(output_dir)

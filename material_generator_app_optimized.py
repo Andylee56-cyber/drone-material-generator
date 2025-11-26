@@ -36,10 +36,16 @@ except IndexError:
     project_root = Path(__file__).resolve().parent
 sys.path.insert(0, str(project_root))
 
-# 设置环境变量避免 OpenGL 依赖（在导入前设置）
+# 设置环境变量避免 OpenGL 依赖（在导入前设置，必须最早）
 import os
-os.environ['OPENCV_DISABLE_OPENCL'] = '1'
-os.environ['QT_QPA_PLATFORM'] = 'offscreen'
+# 必须在任何导入前设置
+if 'OPENCV_DISABLE_OPENCL' not in os.environ:
+    os.environ['OPENCV_DISABLE_OPENCL'] = '1'
+if 'QT_QPA_PLATFORM' not in os.environ:
+    os.environ['QT_QPA_PLATFORM'] = 'offscreen'
+# 尝试设置更多环境变量避免 GUI 依赖
+os.environ['DISPLAY'] = ''
+os.environ['LIBGL_ALWAYS_SOFTWARE'] = '1'
 
 # 延迟导入 agents，如果失败显示友好错误
 try:
@@ -86,14 +92,12 @@ else:
 def get_generator(draw_boxes=True):
     """获取生成器，只初始化一次，自动使用GPU"""
     if not AGENTS_AVAILABLE:
-        # 创建一个占位生成器，允许应用启动
-        class PlaceholderGenerator:
-            def __init__(self):
-                self.draw_boxes = draw_boxes
-                self._error = IMPORT_ERROR
-            def generate_multi_angle_images(self, *args, **kwargs):
-                raise RuntimeError(f"Generator unavailable: {self._error}")
-        return PlaceholderGenerator()
+        raise RuntimeError(f"Cannot create generator: {IMPORT_ERROR}")
+    
+    # 确保环境变量已设置
+    import os
+    os.environ['OPENCV_DISABLE_OPENCL'] = '1'
+    os.environ['QT_QPA_PLATFORM'] = 'offscreen'
     
     try:
         generator = ImageMultiAngleGenerator(draw_boxes=draw_boxes)
@@ -104,14 +108,18 @@ def get_generator(draw_boxes=True):
                 generator.model.eval()
         return generator
     except Exception as e:
-        # 即使初始化失败，也返回占位对象，避免应用崩溃
-        class PlaceholderGenerator:
-            def __init__(self, error_msg):
-                self.draw_boxes = draw_boxes
-                self._error = error_msg
-            def generate_multi_angle_images(self, *args, **kwargs):
-                raise RuntimeError(f"Generator initialization failed: {self._error}")
-        return PlaceholderGenerator(str(e))
+        # 重试一次，可能环境变量需要时间生效
+        import time
+        time.sleep(0.1)
+        try:
+            generator = ImageMultiAngleGenerator(draw_boxes=draw_boxes)
+            if hasattr(generator, 'model') and generator.model is not None:
+                if torch.cuda.is_available():
+                    generator.model = generator.model.to(device)
+                    generator.model.eval()
+            return generator
+        except Exception as e2:
+            raise RuntimeError(f"Failed to initialize generator: {e2}. Original error: {e}")
 
 @st.cache_resource
 def get_agent():
@@ -208,16 +216,9 @@ st.markdown("**功能**: 输入一张图片，自动生成多角度素材（带�
 st.markdown("**新增**: 质量较差素材自动增强训练功能")
 st.markdown("---")
 
-# 使用缓存的模型初始化（延迟初始化，避免启动时失败）
+# 使用缓存的模型初始化
 if 'generator' not in st.session_state:
-    try:
-        st.session_state.generator = get_generator(draw_boxes=True)
-    except Exception as e:
-        # 即使失败也创建占位对象，允许应用启动
-        class PlaceholderGenerator:
-            def generate_multi_angle_images(self, *args, **kwargs):
-                raise RuntimeError(f"Generator unavailable: {e}")
-        st.session_state.generator = PlaceholderGenerator()
+    st.session_state.generator = get_generator(draw_boxes=True)
 
 if 'agent' not in st.session_state:
     try:
