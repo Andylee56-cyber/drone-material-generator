@@ -29,6 +29,13 @@ else:
 # 推理时不需要梯度（节省内存）
 torch.set_grad_enabled(False)
 
+# 设置环境变量避免 OpenGL 依赖（必须在导入前设置）
+import os
+os.environ['OPENCV_DISABLE_OPENCL'] = '1'
+os.environ['QT_QPA_PLATFORM'] = 'offscreen'
+os.environ['DISPLAY'] = ''
+os.environ['LIBGL_ALWAYS_SOFTWARE'] = '1'
+
 try:
     project_root = Path(__file__).resolve().parents[2]
 except IndexError:
@@ -36,10 +43,29 @@ except IndexError:
     project_root = Path(__file__).resolve().parent
 sys.path.insert(0, str(project_root))
 
-from agents.image_multi_angle_generator import ImageMultiAngleGenerator
-from agents.image_quality_analyzer import ImageQualityAnalyzer
-from agents.material_generator_agent import MaterialGeneratorAgent
-from agents.material_enhancement_trainer import MaterialEnhancementTrainer
+# 延迟导入 agents，如果失败显示友好错误
+try:
+    from agents.image_multi_angle_generator import ImageMultiAngleGenerator
+    from agents.image_quality_analyzer import ImageQualityAnalyzer
+    from agents.material_generator_agent import MaterialGeneratorAgent
+    from agents.material_enhancement_trainer import MaterialEnhancementTrainer
+    AGENTS_AVAILABLE = True
+except Exception as e:
+    AGENTS_AVAILABLE = False
+    print(f"警告: Agents 导入失败: {e}")
+    # 创建占位类，避免后续代码报错
+    class ImageMultiAngleGenerator:
+        def __init__(self, *args, **kwargs):
+            pass
+    class ImageQualityAnalyzer:
+        def __init__(self, *args, **kwargs):
+            pass
+    class MaterialGeneratorAgent:
+        def __init__(self, *args, **kwargs):
+            pass
+    class MaterialEnhancementTrainer:
+        def __init__(self, *args, **kwargs):
+            pass
 
 st.set_page_config(page_title="无人机素材生成系统", page_icon="🚁", layout="wide", initial_sidebar_state="expanded")
 

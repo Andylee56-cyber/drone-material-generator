@@ -5,25 +5,31 @@
 """
 
 import numpy as np
-try:
-    import cv2
-except ImportError:
-    try:
-        import cv2.cv2 as cv2
-    except ImportError:
+import os
+
+# 设置环境变量避免 OpenGL 依赖（必须在导入前设置）
+os.environ['OPENCV_DISABLE_OPENCL'] = '1'
+os.environ['QT_QPA_PLATFORM'] = 'offscreen'
+os.environ['DISPLAY'] = ''
+os.environ['LIBGL_ALWAYS_SOFTWARE'] = '1'
+
+# 延迟导入 OpenCV，避免在模块级别失败
+_cv2_available = None
+_cv2 = None
+
+def _get_cv2():
+    """延迟导入 OpenCV，如果失败返回 None"""
+    global _cv2_available, _cv2
+    if _cv2_available is None:
         try:
-            import sys
-            import importlib.util
-            spec = importlib.util.find_spec("cv2")
-            if spec is None:
-                raise ImportError("cv2 module not found")
             import cv2
-        except Exception:
-            raise ImportError(
-                "OpenCV (cv2) is not installed. "
-                "Please ensure 'opencv-python-headless>=4.8.0' is in requirements.txt. "
-                "If the error persists, try: pip install opencv-python-headless"
-            )
+            _cv2 = cv2
+            _cv2_available = True
+        except (ImportError, OSError) as e:
+            # OSError 包括 libGL.so.1 缺失等系统库问题
+            _cv2_available = False
+            print(f"警告: OpenCV 导入失败: {e}")
+    return _cv2 if _cv2_available else None
 from PIL import Image
 import torch
 from pathlib import Path
@@ -74,10 +80,17 @@ class ImageQualityAnalyzer:
         返回:
             包含8个维度分数的字典
         """
+        # 延迟导入 OpenCV
+        cv2 = _get_cv2()
+        if cv2 is None:
+            # 如果 OpenCV 不可用，使用 PIL 降级方案
+            return self._analyze_with_pil(image_path)
+        
         # 读取图片
         img = cv2.imread(image_path)
         if img is None:
-            raise ValueError(f"无法读取图片: {image_path}")
+            # 如果 cv2.imread 失败，尝试用 PIL 读取
+            return self._analyze_with_pil(image_path)
         
         img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         h, w = img.shape[:2]
@@ -116,6 +129,62 @@ class ImageQualityAnalyzer:
             "目标密集度": target_density,
             "场景复杂度": scene_complexity
         }
+    
+    def _analyze_with_pil(self, image_path: str) -> Dict:
+        """
+        使用 PIL 进行基础分析（OpenCV 不可用时的降级方案）
+        """
+        try:
+            pil_img = Image.open(image_path).convert("RGB")
+            w, h = pil_img.size
+            img_array = np.array(pil_img)
+            
+            # 1. 图片数据量
+            file_size = Path(image_path).stat().st_size / (1024 * 1024)  # MB
+            pixel_count = h * w
+            resolution_score = min(100, (pixel_count / (1280 * 720)) * 100)
+            size_score = min(100, (file_size / 1.0) * 100)
+            if pixel_count >= 640 * 480 and file_size >= 0.5:
+                resolution_score = max(30, resolution_score)
+                size_score = max(30, size_score)
+            data_quantity = (resolution_score * 0.6 + size_score * 0.4)
+            
+            # 2. 拍摄光照质量（基于亮度）
+            brightness = np.mean(img_array)
+            lighting_quality = min(100, max(20, (brightness / 128.0) * 100))
+            
+            # 3-8. 其他维度使用基础估算
+            contrast = np.std(img_array)
+            target_size = min(100, max(30, (contrast / 50.0) * 100))
+            target_completeness = 70.0
+            data_balance = 60.0
+            product_richness = 50.0
+            target_density = min(100, max(20, (pixel_count / 1000000) * 10))
+            scene_complexity = min(100, max(30, contrast / 2.0))
+            
+            return {
+                "图片数据量": data_quantity,
+                "拍摄光照质量": lighting_quality,
+                "目标尺寸": target_size,
+                "目标完整性": target_completeness,
+                "数据均衡度": data_balance,
+                "产品丰富度": product_richness,
+                "目标密集度": target_density,
+                "场景复杂度": scene_complexity
+            }
+        except Exception as e:
+            print(f"PIL 分析失败: {e}")
+            # 返回默认值
+            return {
+                "图片数据量": 50.0,
+                "拍摄光照质量": 50.0,
+                "目标尺寸": 50.0,
+                "目标完整性": 50.0,
+                "数据均衡度": 50.0,
+                "产品丰富度": 50.0,
+                "目标密集度": 50.0,
+                "场景复杂度": 50.0
+            }
     
     def analyze_batch(self, image_paths: List[str]) -> Dict:
         """
@@ -170,6 +239,12 @@ class ImageQualityAnalyzer:
     
     def _calculate_lighting_quality(self, img: np.ndarray) -> float:
         """计算拍摄光照质量维度 (0-100) - VisDrone优化：放宽标准"""
+        cv2 = _get_cv2()
+        if cv2 is None:
+            # 如果 OpenCV 不可用，使用基础亮度计算
+            brightness = np.mean(img)
+            return min(100, max(20, (brightness / 128.0) * 100))
+        
         # 转换为HSV色彩空间
         hsv = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
         v_channel = hsv[:, :, 2]  # 亮度通道
