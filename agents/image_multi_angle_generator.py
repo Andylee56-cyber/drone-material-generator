@@ -218,17 +218,11 @@ class ImageMultiAngleGenerator:
         # 延迟导入 OpenCV
         cv2 = _get_cv2()
         if cv2 is None:
-            # 最后一次尝试：直接导入，忽略错误
-            try:
-                import os
-                os.environ['OPENCV_DISABLE_OPENCL'] = '1'
-                os.environ['QT_QPA_PLATFORM'] = 'offscreen'
-                import cv2
-            except Exception as e:
-                raise RuntimeError(
-                    f"OpenCV (cv2) is not available. Error: {e}. "
-                    "This feature requires OpenCV. Please ensure opencv-python-headless is installed."
-                )
+            # 如果 OpenCV 不可用，使用 PIL 降级方案
+            print("⚠️ OpenCV 不可用，使用 PIL 降级方案生成图片（无检测框和高级变换）")
+            return self._generate_with_pil_fallback(
+                input_image_path, output_dir, num_generations, transformations
+            )
         
         input_path = Path(input_image_path)
         output_path = Path(output_dir)

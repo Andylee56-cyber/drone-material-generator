@@ -55,6 +55,8 @@ except Exception as e:
     IMPORT_ERROR = str(e)
     print(f"警告: Agents 导入失败: {e}")
     # 创建占位类，避免后续代码报错
+    # 注意：如果只是 OpenCV 导入失败，真正的类应该能初始化（使用 PIL 降级）
+    # 只有在整个模块导入失败时才使用占位类
     class ImageMultiAngleGenerator:
         def __init__(self, *args, **kwargs):
             self.draw_boxes = kwargs.get('draw_boxes', True)
@@ -98,7 +100,19 @@ def get_generator(draw_boxes=True):
                 generator.model.eval()
         return generator
     except Exception as e:
-        # 如果初始化失败，返回占位生成器
+        error_msg = str(e)
+        # 如果是 OpenCV 相关的错误，生成器应该仍然可以工作（使用 PIL 降级）
+        # 只有在真正的初始化失败时才返回占位生成器
+        if 'libGL' in error_msg or 'OpenCV' in error_msg or 'cv2' in error_msg:
+            # OpenCV 错误不应该阻止生成器初始化，它应该使用 PIL 降级
+            print(f"⚠️ OpenCV 相关错误，但生成器仍可使用 PIL 降级: {e}")
+            # 尝试再次初始化（这次应该能成功，因为类已经定义了）
+            try:
+                generator = ImageMultiAngleGenerator(draw_boxes=draw_boxes)
+                return generator
+            except:
+                pass
+        # 如果还是失败，返回占位生成器
         print(f"生成器初始化失败: {e}")
         return ImageMultiAngleGenerator(draw_boxes=draw_boxes)
 
