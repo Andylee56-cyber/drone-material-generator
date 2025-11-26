@@ -147,9 +147,9 @@ class ImageMultiAngleGenerator:
                 elif transform_type == 'rotate_270':
                     transformed_img = pil_img.rotate(90, expand=True)
                 elif transform_type == 'flip_horizontal':
-                    transformed_img = pil_img.transpose(Image.FLIP_LEFT_RIGHT)
+                    transformed_img = pil_img.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
                 elif transform_type == 'flip_vertical':
-                    transformed_img = pil_img.transpose(Image.FLIP_TOP_BOTTOM)
+                    transformed_img = pil_img.transpose(Image.Transpose.FLIP_TOP_BOTTOM)
                 elif transform_type == 'crop_center':
                     crop_size = min(w, h) // 2
                     left = (w - crop_size) // 2
