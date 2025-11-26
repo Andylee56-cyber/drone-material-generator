@@ -138,6 +138,7 @@ def get_agent():
         return agent
     except Exception as e:
         # 返回 None 而不是抛出错误，允许应用继续运行
+        print(f"Warning: Failed to initialize agent: {e}")
         return None
 
 @st.cache_resource
@@ -155,6 +156,7 @@ def get_enhancement_trainer():
         return trainer
     except Exception as e:
         # 返回 None 而不是抛出错误，允许应用继续运行
+        print(f"Warning: Failed to initialize enhancement trainer: {e}")
         return None
 
 # ========== 移动端优化 ==========
