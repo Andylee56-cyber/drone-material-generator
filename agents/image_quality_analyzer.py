@@ -326,11 +326,31 @@ class ImageQualityAnalyzer:
             except:
                 pass
         
-        # 确保返回有效结果
-        if not results:
-            # 如果完全没有结果，至少返回一个默认结果
+        # 确保返回有效结果 - 关键修复：即使所有分析失败，也要为每张图片创建结果
+        if len(results) < len(image_paths):
+            # 如果结果数量少于图片数量，为缺失的图片创建默认结果
+            processed_paths = {r.get('image_path', '') for r in results}
+            for img_path in image_paths:
+                img_path_str = str(img_path)
+                if img_path_str not in processed_paths:
+                    default_result = {
+                        'image_path': img_path_str,
+                        "图片数据量": 50.0,
+                        "拍摄光照质量": 50.0,
+                        "目标尺寸": 50.0,
+                        "目标完整性": 50.0,
+                        "数据均衡度": 50.0,
+                        "产品丰富度": 50.0,
+                        "目标密集度": 50.0,
+                        "场景复杂度": 50.0
+                    }
+                    results.append(default_result)
+        
+        # 如果完全没有结果，至少返回一个默认结果
+        if not results and image_paths:
+            print(f"严重警告: 所有 {len(image_paths)} 张图片分析都失败，为每张图片创建默认结果")
             results = [{
-                'image_path': image_paths[0] if image_paths else "unknown",
+                'image_path': str(img_path),
                 "图片数据量": 50.0,
                 "拍摄光照质量": 50.0,
                 "目标尺寸": 50.0,
@@ -339,13 +359,18 @@ class ImageQualityAnalyzer:
                 "产品丰富度": 50.0,
                 "目标密集度": 50.0,
                 "场景复杂度": 50.0
-            }]
+            } for img_path in image_paths]
             avg_scores = {dim: 50.0 for dim in self.dimensions}
+        
+        # 确保 total_images 等于图片数量，而不是结果数量
+        total_images = len(image_paths) if image_paths else len(results)
+        
+        print(f"最终结果: total_images={total_images}, results数量={len(results)}, 图片路径数量={len(image_paths) if image_paths else 0}")
         
         return {
             "individual_results": results,
             "average_scores": avg_scores,
-            "total_images": len(results),
+            "total_images": total_images,  # 使用图片数量，而不是结果数量
             "total_annotations": total_annotations
         }
     

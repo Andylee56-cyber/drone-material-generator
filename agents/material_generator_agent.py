@@ -38,27 +38,45 @@ class MaterialGeneratorAgent:
             分析结果和质量评估
         """
         # 批量分析
+        if not image_paths:
+            # 如果图片路径为空，返回空结果
+            return {
+                'analysis': {
+                    "individual_results": [],
+                    "average_scores": {dim: 50.0 for dim in self.analyzer.dimensions},
+                    "total_images": 0,
+                    "total_annotations": 0
+                },
+                'quality_evaluation': [],
+                'recommendations': {}
+            }
+        
         analysis_results = self.analyzer.analyze_batch(image_paths)
         
         # 确保 analysis_results 有有效数据
         if not analysis_results.get('individual_results'):
-            # 如果没有结果，创建默认结果
+            # 如果没有结果，为每张图片创建默认结果
+            default_results = [{
+                'image_path': str(img_path),
+                "图片数据量": 50.0,
+                "拍摄光照质量": 50.0,
+                "目标尺寸": 50.0,
+                "目标完整性": 50.0,
+                "数据均衡度": 50.0,
+                "产品丰富度": 50.0,
+                "目标密集度": 50.0,
+                "场景复杂度": 50.0
+            } for img_path in image_paths]
             analysis_results = {
-                "individual_results": [{
-                    'image_path': image_paths[0] if image_paths else "unknown",
-                    "图片数据量": 50.0,
-                    "拍摄光照质量": 50.0,
-                    "目标尺寸": 50.0,
-                    "目标完整性": 50.0,
-                    "数据均衡度": 50.0,
-                    "产品丰富度": 50.0,
-                    "目标密集度": 50.0,
-                    "场景复杂度": 50.0
-                }],
+                "individual_results": default_results,
                 "average_scores": {dim: 50.0 for dim in self.analyzer.dimensions},
-                "total_images": len(image_paths) if image_paths else 1,
+                "total_images": len(image_paths),
                 "total_annotations": 0
             }
+        
+        # 确保 total_images 正确
+        if analysis_results.get('total_images', 0) == 0 and image_paths:
+            analysis_results['total_images'] = len(image_paths)
         
         # 评估每张图片的综合质量
         quality_scores = []
