@@ -3,10 +3,9 @@ plotly>=5.17.0
 pandas>=2.0.0
 numpy>=1.24.0,<2.0.0
 Pillow>=10.0.0
-# 关键：只使用headless版本，明确排除opencv-python
+# 关键：只使用headless版本（不依赖libGL）
+# 注意：如果系统已安装opencv-python，需要先卸载：pip uninstall opencv-python
 opencv-python-headless==4.8.1.78
-# 确保不安装opencv-python（非headless版本）
-opencv-python==0.0.0; platform_system != "Linux"
 torch>=2.0.0
 torchvision>=0.15.0
 ultralytics>=8.0.0
