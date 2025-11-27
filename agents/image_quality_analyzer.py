@@ -62,12 +62,25 @@ from PIL import Image
 import torch
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional
-
-# 延迟导入YOLO，确保环境变量已设置
-# YOLO在导入时会导入cv2，所以必须在环境变量设置后导入
-from ultralytics import YOLO
 import json
 from datetime import datetime
+
+# 延迟导入YOLO，避免在模块级别导入cv2
+# YOLO在导入时会导入cv2，所以必须在环境变量设置后延迟导入
+_YOLO_CLS = None
+def _get_yolo_class():
+    """延迟导入YOLO类，确保环境变量已设置"""
+    global _YOLO_CLS
+    if _YOLO_CLS is None:
+        # 再次确保环境变量已设置
+        os.environ['OPENCV_DISABLE_OPENCL'] = '1'
+        os.environ['QT_QPA_PLATFORM'] = 'offscreen'
+        os.environ['DISPLAY'] = ''
+        os.environ['LIBGL_ALWAYS_SOFTWARE'] = '1'
+        
+        from ultralytics import YOLO
+        _YOLO_CLS = YOLO
+    return _YOLO_CLS
 
 
 class ImageQualityAnalyzer:
@@ -82,7 +95,11 @@ class ImageQualityAnalyzer:
         """
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         
-        # 加载YOLO模型用于目标检测
+        # 延迟加载YOLO模型用于目标检测
+        YOLO = _get_yolo_class()
+        if YOLO is None:
+            raise RuntimeError("无法导入YOLO，请检查ultralytics是否已安装")
+        
         if yolo_model_path and Path(yolo_model_path).exists():
             self.detector = YOLO(yolo_model_path)
         else:
