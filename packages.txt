@@ -1,4 +1,2 @@
-# Streamlit Cloud 系统依赖
 libgl1-mesa-glx
 libglib2.0-0
-
