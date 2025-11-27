@@ -424,17 +424,28 @@ class ImageMultiAngleGenerator:
                     conf_variation = random.uniform(-0.08, 0.08)
                     final_conf = max(0.1, min(0.65, base_conf + conf_variation))
                     
-                    # 为每次检测添加随机IOU阈值变化
-                    iou_threshold = 0.4 + (idx % 3) * 0.05  # 0.4, 0.45, 0.5
-                    
-                    # 检测前再次确保图片已经变换
-                    if np.array_equal(transformed_img, img):
-                        # 如果还是原图，强制应用变换
-                        center = (w // 2, h // 2)
-                        angle = random.uniform(-60, 60)
-                        scale = random.uniform(0.7, 1.3)
-                        M = cv2.getRotationMatrix2D(center, angle, scale)
-                        transformed_img = cv2.warpAffine(transformed_img, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
+                    # 检测前再次确保图片已经变换（双重验证）
+                    if cv2 is not None and transformed_img.shape == img.shape:
+                        diff_check = np.abs(transformed_img.astype(np.float32) - img.astype(np.float32))
+                        if np.mean(diff_check) < 10.0:  # 如果差异还是太小
+                            # 强制应用一个极端变换
+                            center = (w // 2, h // 2)
+                            angle = random.uniform(-60, 60)
+                            scale = random.uniform(0.7, 1.3)
+                            M = cv2.getRotationMatrix2D(center, angle, scale)
+                            transformed_img = cv2.warpAffine(transformed_img, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
+                            
+                            # 再添加透视变换
+                            offset = random.uniform(0.1, 0.3)
+                            pts1 = np.float32([[0, 0], [w, 0], [0, h], [w, h]])
+                            pts2 = np.float32([
+                                [w*offset, h*offset], 
+                                [w*(1-offset), h*offset], 
+                                [w*0.1, h*0.9], 
+                                [w*0.9, h*0.9]
+                            ])
+                            M2 = cv2.getPerspectiveTransform(pts1, pts2)
+                            transformed_img = cv2.warpPerspective(transformed_img, M2, (w, h), borderMode=cv2.BORDER_REPLICATE)
                     
                     transformed_img, detections = self._detect_and_draw_boxes(transformed_img, conf_threshold=final_conf)
                     all_detections.extend(detections)
