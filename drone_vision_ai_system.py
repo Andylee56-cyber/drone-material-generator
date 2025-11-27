@@ -91,6 +91,17 @@ SCIFI_CSS = """
     * {
         font-family: 'Rajdhani', 'Microsoft YaHei', sans-serif !important;
     }
+
+    /* Section labels with icon */
+    .section-label {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-weight: 600;
+        font-size: 1rem;
+        color: #e0e0e0;
+        margin-bottom: 0.5rem;
+    }
     
     /* 主背景 - 深色科技感 */
     .stApp {
@@ -256,6 +267,8 @@ def init_session_state():
         st.session_state.generated_images = []
     if 'uploaded_file' not in st.session_state:
         st.session_state.uploaded_file = None
+    if 'enhancement_mode' not in st.session_state:
+        st.session_state.enhancement_mode = False
 
 def get_generator(draw_boxes: bool = True):
     """获取生成器实例"""
@@ -532,7 +545,10 @@ def show_generation_page():
                     status_text.warning("⚠️ 生成过程中出现错误，请重试")
                     result = {'generated_files': [], 'num_generated': 0, 'confidence_statistics': {}}
             
-            st.session_state.generated_images = result.get('generated_files', [])
+            generated_files_list = result.get('generated_files', [])
+            unique_images = list(dict.fromkeys(generated_files_list))
+            unique_images.sort()
+            st.session_state.generated_images = unique_images
             st.session_state.confidence_stats = result.get('confidence_statistics', {})
             
             # 显示生成的图片 - 显示所有图片，使用分页
@@ -541,22 +557,22 @@ def show_generation_page():
             st.info(f"✅ 共生成 {total_images} 张素材图片")
             
             # 显示所有图片（不分页，使用滚动）
-            # 每行3张，自动换行
-            for row_start in range(0, total_images, 3):
-                cols = st.columns(3)
-                for col_idx in range(3):
-                    idx = row_start + col_idx
-                    if idx < total_images:
-                        img_path = st.session_state.generated_images[idx]
-                        with cols[col_idx]:
-                            try:
-                                img = Image.open(img_path)
-                                st.image(img, use_container_width=True)
-                                # 从文件名提取变换类型
-                                transform_name = Path(img_path).stem.split('_')[-1] if '_' in Path(img_path).stem else "original"
-                                st.caption(f"素材 {idx + 1}/{total_images} - {transform_name}")
-                            except Exception as e:
-                                st.error(f"加载失败: {e}")
+            if total_images:
+                grid_container = st.container()
+                for row_start in range(0, total_images, 3):
+                    cols = grid_container.columns(3)
+                    for col_idx in range(3):
+                        idx = row_start + col_idx
+                        if idx < total_images:
+                            img_path = st.session_state.generated_images[idx]
+                            with cols[col_idx]:
+                                try:
+                                    img = Image.open(img_path)
+                                    st.image(img, use_container_width=True)
+                                    transform_name = Path(img_path).stem.split('_')[-1] if '_' in Path(img_path).stem else "original"
+                                    st.caption(f"素材 {idx + 1}/{total_images} - {transform_name}")
+                                except Exception as e:
+                                    st.error(f"加载失败: {e}")
             
             # 显示置信度统计饼图（显示所有置信度）
             confidence_stats = st.session_state.confidence_stats
@@ -641,7 +657,7 @@ def show_generation_page():
                             st.json(confidence_stats)
                 
                 with col2:
-                    st.markdown("#### 📈 统计信息")
+                    st.markdown('<div class="section-label">📈 统计信息</div>', unsafe_allow_html=True)
                     
                     # 计算加权平均置信度（权重由每个维度的占比随机生成）
                     all_confidences = st.session_state.confidence_stats.get('_all_confidences', [])
@@ -676,7 +692,8 @@ def show_generation_page():
                         st.caption("权重由8维度占比随机生成")
                         
                         # 显示权重分布
-                        with st.expander("📊 权重分布"):
+                        st.markdown('<div class="section-label">📊 权重分布</div>', unsafe_allow_html=True)
+                        with st.expander("查看权重", expanded=False):
                             dimension_names = [
                                 "图片数据量", "拍摄光照质量", "目标尺寸", "目标完整性",
                                 "数据均衡度", "产品丰富度", "目标密集度", "场景复杂度"
@@ -694,35 +711,35 @@ def show_generation_page():
                         quality_score = 0
                     
                     # 质量评估
+                    def run_enhancement():
+                        if not ENHANCEMENT_AVAILABLE:
+                            st.warning("⚠️ 当前环境未提供增强训练模块")
+                            return
+                        try:
+                            from agents.material_enhancement_trainer import MaterialEnhancementTrainer
+                            trainer = MaterialEnhancementTrainer()
+                            enhance_targets = st.session_state.generated_images[: min(8, len(st.session_state.generated_images))]
+                            if not enhance_targets:
+                                st.info("暂无素材可用于增强训练")
+                                return
+                            enhanced_images = []
+                            for img_path in enhance_targets:
+                                enhanced_images.append(trainer.enhance_image(img_path))
+                            st.success(f"✅ 成功执行增强训练，输出 {len(enhanced_images)} 张增强素材")
+                        except Exception as err:
+                            st.error(f"增强训练失败: {err}")
+
                     if quality_score > 0:
                         if quality_score < 60:
                             st.warning("⚠️ 素材质量较低，建议开启增强训练")
                             if st.button("🚀 开启增强训练", type="primary", use_container_width=True):
-                                st.session_state.enhancement_mode = True
-                                st.info("增强训练模式已开启，将在下次生成时应用")
+                                    run_enhancement()
                         elif quality_score < 80:
                             st.info("⚡ 素材质量良好，可以进一步提升")
                             if st.button("🚀 开启增强训练", type="secondary", use_container_width=True):
-                                st.session_state.enhancement_mode = True
-                                st.info("增强训练模式已开启")
+                                    run_enhancement()
                         else:
                             st.success("✅ 素材质量优秀")
-                    
-                    # 增强训练功能
-                    if st.session_state.get('enhancement_mode', False) and ENHANCEMENT_AVAILABLE:
-                        st.markdown("### 🚀 增强训练模式")
-                        st.warning("增强训练功能需要额外的计算资源，可能会增加处理时间")
-                        if st.button("开始增强训练", type="primary"):
-                            try:
-                                from agents.material_enhancement_trainer import MaterialEnhancementTrainer
-                                trainer = MaterialEnhancementTrainer()
-                                enhanced_images = []
-                                for img_path in st.session_state.generated_images[:5]:  # 只增强前5张
-                                    enhanced = trainer.enhance_image(img_path)
-                                    enhanced_images.append(enhanced)
-                                st.success(f"✅ 成功增强 {len(enhanced_images)} 张图片")
-                            except Exception as e:
-                                st.error(f"增强训练失败: {e}")
             
             # 显示详细统计表格
             if st.session_state.confidence_stats:
