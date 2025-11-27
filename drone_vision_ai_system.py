@@ -554,7 +554,7 @@ def show_analysis_page():
             uploaded_files = st.file_uploader(
                 "上传多张图片",
                 type=['jpg', 'jpeg', 'png'],
-                accept_multiple=True,
+                accept_multiple_files=True,
                 key="batch_upload"
             )
             
@@ -703,7 +703,7 @@ def show_filter_page():
     uploaded_files = st.file_uploader(
         "上传多张图片",
         type=['jpg', 'jpeg', 'png'],
-        accept_multiple=True
+        accept_multiple_files=True
     )
     
     col1, col2 = st.columns(2)
