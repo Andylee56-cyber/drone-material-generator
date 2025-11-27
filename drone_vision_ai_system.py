@@ -649,8 +649,7 @@ def show_generation_page():
                         quality_score = 0
                     
                     # 质量评估
-                    if all_confidences:
-                    if quality_score < 60:
+                    if quality_score > 0:
                         st.warning("⚠️ 素材质量较低，建议开启增强训练")
                         if st.button("🚀 开启增强训练", type="primary", use_container_width=True):
                             st.session_state.enhancement_mode = True

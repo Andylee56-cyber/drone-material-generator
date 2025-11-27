@@ -418,10 +418,24 @@ class ImageMultiAngleGenerator:
                 detections = []
                 if self.draw_boxes:
                     # 为每次检测添加随机变化（更大的变化范围）
-                    base_conf = 0.2 + (idx % 7) * 0.05  # 0.2-0.5之间变化，7个不同值
-                    # 添加额外的随机偏移
-                    conf_variation = random.uniform(-0.05, 0.05)
-                    final_conf = max(0.15, min(0.6, base_conf + conf_variation))
+                    # 使用更激进的随机化，确保每次检测结果不同
+                    base_conf = 0.15 + (idx % 8) * 0.05  # 0.15-0.5之间变化，8个不同值
+                    # 添加额外的随机偏移（更大的范围）
+                    conf_variation = random.uniform(-0.08, 0.08)
+                    final_conf = max(0.1, min(0.65, base_conf + conf_variation))
+                    
+                    # 为每次检测添加随机IOU阈值变化
+                    iou_threshold = 0.4 + (idx % 3) * 0.05  # 0.4, 0.45, 0.5
+                    
+                    # 检测前再次确保图片已经变换
+                    if np.array_equal(transformed_img, img):
+                        # 如果还是原图，强制应用变换
+                        center = (w // 2, h // 2)
+                        angle = random.uniform(-60, 60)
+                        scale = random.uniform(0.7, 1.3)
+                        M = cv2.getRotationMatrix2D(center, angle, scale)
+                        transformed_img = cv2.warpAffine(transformed_img, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
+                    
                     transformed_img, detections = self._detect_and_draw_boxes(transformed_img, conf_threshold=final_conf)
                     all_detections.extend(detections)
                 
@@ -523,8 +537,10 @@ class ImageMultiAngleGenerator:
                 else:
                     conf_threshold = base_conf
             
-            # 使用更严格的NMS和置信度阈值
-            results = self.detector(img, verbose=False, conf=conf_threshold, iou=0.45)
+            # 使用动态NMS和置信度阈值（每次检测都不同）
+            # 根据图片内容动态调整IOU
+            iou_threshold = 0.4 + (hash(str(img.shape)) % 3) * 0.05  # 0.4-0.5之间
+            results = self.detector(img, verbose=False, conf=conf_threshold, iou=iou_threshold)
             detections = []
             annotated_img = img.copy()
             
