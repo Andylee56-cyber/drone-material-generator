@@ -118,6 +118,7 @@ from PIL import Image, ImageDraw, ImageFont
 from pathlib import Path
 from typing import List, Dict, Optional
 import random
+import time
 from datetime import datetime
 import math
 import torch
@@ -376,12 +377,19 @@ class ImageMultiAngleGenerator:
 
         for idx, transform_type in enumerate(selected_transforms, 1):
             try:
-                transformed_img = self._apply_transformation(img, transform_type, h, w)
+                # 为每次变换生成唯一的随机种子，确保每次变换都不同
+                random.seed(time.time() + idx * 1000 + random.randint(1, 10000))
+                np.random.seed(int(time.time() * 1000) % 2**32 + idx)
                 
-                # 进行目标检测并绘制检测框
+                # 传递索引作为额外随机因子
+                transformed_img = self._apply_transformation(img, transform_type, h, w, random_factor=idx)
+                
+                # 进行目标检测并绘制检测框（每次使用不同的置信度阈值）
                 detections = []
                 if self.draw_boxes:
-                    transformed_img, detections = self._detect_and_draw_boxes(transformed_img)
+                    # 为每次检测添加随机变化
+                    base_conf = 0.25 + (idx % 5) * 0.05  # 0.25-0.45之间变化
+                    transformed_img, detections = self._detect_and_draw_boxes(transformed_img, conf_threshold=base_conf)
                     all_detections.extend(detections)
                 
                 output_filename = f"generated_{idx:03d}_{transform_type}.jpg"
@@ -438,9 +446,13 @@ class ImageMultiAngleGenerator:
             'confidence_statistics': confidence_stats
         }
 
-    def _detect_and_draw_boxes(self, img: np.ndarray) -> tuple:
+    def _detect_and_draw_boxes(self, img: np.ndarray, conf_threshold: float = None) -> tuple:
         """
         检测目标并绘制检测框
+        
+        参数:
+            img: 输入图片
+            conf_threshold: 置信度阈值，如果为None则自动计算
         
         返回:
             (绘制后的图片, 检测结果列表)
@@ -466,17 +478,17 @@ class ImageMultiAngleGenerator:
         
         try:
             # 改进的检测算法：使用动态置信度阈值
-            # 根据图片质量调整置信度阈值，让检测更准确
-            base_conf = 0.25
-            # 根据图片亮度调整置信度（暗图需要更低阈值）
-            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY) if len(img.shape) == 3 else img
-            mean_brightness = np.mean(gray)
-            if mean_brightness < 50:  # 暗图
-                conf_threshold = base_conf * 0.7
-            elif mean_brightness > 200:  # 亮图
-                conf_threshold = base_conf * 1.2
-            else:
-                conf_threshold = base_conf
+            if conf_threshold is None:
+                base_conf = 0.25
+                # 根据图片亮度调整置信度（暗图需要更低阈值）
+                gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY) if len(img.shape) == 3 else img
+                mean_brightness = np.mean(gray)
+                if mean_brightness < 50:  # 暗图
+                    conf_threshold = base_conf * 0.7
+                elif mean_brightness > 200:  # 亮图
+                    conf_threshold = base_conf * 1.2
+                else:
+                    conf_threshold = base_conf
             
             # 使用更严格的NMS和置信度阈值
             results = self.detector(img, verbose=False, conf=conf_threshold, iou=0.45)
@@ -538,41 +550,52 @@ class ImageMultiAngleGenerator:
             return img, []
 
     def _calculate_confidence_stats(self, all_detections: List[Dict]) -> Dict:
-        """计算各类别的平均置信度统计"""
+        """计算各类别的置信度统计（包含所有置信度值）"""
         if not all_detections:
             return {}
         
-        # 按类别分组统计
+        # 按类别分组统计，保留所有置信度值
         class_stats = {}
+        all_confidences = []  # 存储所有置信度值
+        
         for det in all_detections:
             class_name = det['class_name']
+            confidence = det['confidence']
+            all_confidences.append(confidence)
+            
             if class_name not in class_stats:
                 class_stats[class_name] = {
                     'count': 0,
-                    'confidences': [],
+                    'confidences': [],  # 保留所有置信度值
                     'avg_confidence': 0.0
                 }
             class_stats[class_name]['count'] += 1
-            class_stats[class_name]['confidences'].append(det['confidence'])
+            class_stats[class_name]['confidences'].append(confidence)
         
-        # 计算平均置信度
+        # 计算平均置信度（但保留所有置信度值）
         for class_name, stats in class_stats.items():
             stats['avg_confidence'] = np.mean(stats['confidences'])
             stats['max_confidence'] = np.max(stats['confidences'])
             stats['min_confidence'] = np.min(stats['confidences'])
-            del stats['confidences']  # 删除详细列表，只保留统计值
+            # 不删除confidences，保留所有值用于饼图显示
+        
+        # 添加全局统计
+        class_stats['_all_confidences'] = all_confidences
         
         # 按平均置信度排序
         sorted_stats = dict(sorted(
-            class_stats.items(),
+            {k: v for k, v in class_stats.items() if k != '_all_confidences'}.items(),
             key=lambda x: x[1]['avg_confidence'],
             reverse=True
         ))
         
+        # 添加全局统计到结果
+        sorted_stats['_all_confidences'] = all_confidences
+        
         return sorted_stats
 
-    def _apply_transformation(self, img: np.ndarray, transform_type: str, h: int, w: int) -> np.ndarray:
-        """应用指定的3D视角变换（改进版：添加随机参数变化）"""
+    def _apply_transformation(self, img: np.ndarray, transform_type: str, h: int, w: int, random_factor: int = 1) -> np.ndarray:
+        """应用指定的3D视角变换（改进版：添加随机参数变化，确保每次变换都不同）"""
         cv2 = _get_cv2()
         if cv2 is None:
             # 如果 OpenCV 不可用，返回原图
@@ -584,211 +607,439 @@ class ImageMultiAngleGenerator:
         base_transform = transform_type.split('_var')[0].split('_extra')[0]
         has_extra = '_extra' in transform_type
         
+        # 强制所有变换都使用随机参数（除了original）
+        # 使用random_factor确保每次变换都不同
+        rng = np.random.RandomState(random_factor * 1000 + hash(transform_type) % 10000)
+        
         if base_transform == 'original':
-            if has_extra:
-                # 添加轻微的随机旋转和缩放
-                center = (w // 2, h // 2)
-                angle = random.uniform(-5, 5)
-                scale = random.uniform(0.98, 1.02)
-                M = cv2.getRotationMatrix2D(center, angle, scale)
-                result = cv2.warpAffine(result, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
+            # 即使是original，也添加随机变化
+            center = (w // 2, h // 2)
+            angle = rng.uniform(-8, 8)
+            scale = rng.uniform(0.95, 1.05)
+            M = cv2.getRotationMatrix2D(center, angle, scale)
+            result = cv2.warpAffine(result, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
             return result
         
         # ========== 真正的3D视角变换 ==========
         
         elif base_transform == 'top_down_90':
-            # 添加随机变化，让角度更刁钻
-            if has_extra:
-                offset1 = random.uniform(0.05, 0.15)
-                offset2 = random.uniform(0.05, 0.15)
-            else:
-                offset1, offset2 = 0.1, 0.1
+            # 强制使用随机参数，让角度更刁钻
+            offset1 = rng.uniform(0.02, 0.18)  # 更大的变化范围
+            offset2 = rng.uniform(0.02, 0.18)
+            rotation = rng.uniform(-10, 10)  # 更大的旋转角度
+            # 添加额外的倾斜
+            tilt_x = rng.uniform(-0.1, 0.1)
+            tilt_y = rng.uniform(-0.1, 0.1)
             pts1 = np.float32([[0, 0], [w, 0], [0, h], [w, h]])
             pts2 = np.float32([
-                [w*offset1, h*offset1], 
-                [w*(1-offset1), h*offset1], 
-                [w*offset2, h*(1-offset2)], 
-                [w*(1-offset2), h*(1-offset2)]
+                [w*(offset1 + tilt_x), h*(offset1 + tilt_y)], 
+                [w*(1-offset1 + tilt_x), h*(offset1 - tilt_y)], 
+                [w*(offset2 - tilt_x), h*(1-offset2 + tilt_y)], 
+                [w*(1-offset2 - tilt_x), h*(1-offset2 - tilt_y)]
             ])
             M = cv2.getPerspectiveTransform(pts1, pts2)
             result = cv2.warpPerspective(result, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
+            # 应用旋转
+            center = (w // 2, h // 2)
+            M_rot = cv2.getRotationMatrix2D(center, rotation, 1.0)
+            result = cv2.warpAffine(result, M_rot, (w, h), borderMode=cv2.BORDER_REPLICATE)
             
         elif base_transform == 'top_down_60':
-            offset = random.uniform(0.05, 0.15) if has_extra else 0.1
+            offset = rng.uniform(0.02, 0.2)
+            rotation = rng.uniform(-12, 12)
+            tilt = rng.uniform(-0.08, 0.08)
+            top_y = rng.uniform(0.02, 0.1)
+            bottom_y = rng.uniform(0.9, 0.98)
             pts1 = np.float32([[0, 0], [w, 0], [0, h], [w, h]])
-            pts2 = np.float32([[w*offset, h*0.05], [w*(1-offset), h*0.05], [w*0.05, h*0.95], [w*0.95, h*0.95]])
+            pts2 = np.float32([
+                [w*(offset + tilt), h*top_y], 
+                [w*(1-offset + tilt), h*top_y], 
+                [w*(0.05 - tilt), h*bottom_y], 
+                [w*(0.95 - tilt), h*bottom_y]
+            ])
             M = cv2.getPerspectiveTransform(pts1, pts2)
             result = cv2.warpPerspective(result, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
+            center = (w // 2, h // 2)
+            M_rot = cv2.getRotationMatrix2D(center, rotation, 1.0)
+            result = cv2.warpAffine(result, M_rot, (w, h), borderMode=cv2.BORDER_REPLICATE)
             
         elif base_transform == 'top_down_45':
-            offset = random.uniform(0.1, 0.2) if has_extra else 0.15
+            offset = rng.uniform(0.05, 0.25)
+            rotation = rng.uniform(-15, 15)
+            tilt = rng.uniform(-0.1, 0.1)
+            top_y = rng.uniform(0.05, 0.15)
+            bottom_y = rng.uniform(0.85, 0.95)
             pts1 = np.float32([[0, 0], [w, 0], [0, h], [w, h]])
-            pts2 = np.float32([[w*offset, h*0.1], [w*(1-offset), h*0.1], [w*0.1, h*0.9], [w*0.9, h*0.9]])
+            pts2 = np.float32([
+                [w*(offset + tilt), h*top_y], 
+                [w*(1-offset + tilt), h*top_y], 
+                [w*(0.1 - tilt), h*bottom_y], 
+                [w*(0.9 - tilt), h*bottom_y]
+            ])
             M = cv2.getPerspectiveTransform(pts1, pts2)
             result = cv2.warpPerspective(result, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
+            center = (w // 2, h // 2)
+            M_rot = cv2.getRotationMatrix2D(center, rotation, 1.0)
+            result = cv2.warpAffine(result, M_rot, (w, h), borderMode=cv2.BORDER_REPLICATE)
         
         elif base_transform == 'low_angle_30':
-            offset = random.uniform(0.05, 0.15) if has_extra else 0.1
+            offset = rng.uniform(0.02, 0.2)
+            rotation = rng.uniform(-15, 15)
+            top_y = rng.uniform(0.2, 0.4)
+            tilt = rng.uniform(-0.1, 0.1)
             pts1 = np.float32([[0, 0], [w, 0], [0, h], [w, h]])
-            pts2 = np.float32([[w*offset, h*0.3], [w*(1-offset), h*0.3], [w*0.05, h*0.95], [w*0.95, h*0.95]])
+            pts2 = np.float32([
+                [w*(offset + tilt), h*top_y], 
+                [w*(1-offset + tilt), h*top_y], 
+                [w*(0.05 - tilt), h*0.95], 
+                [w*(0.95 - tilt), h*0.95]
+            ])
             M = cv2.getPerspectiveTransform(pts1, pts2)
             result = cv2.warpPerspective(result, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
+            center = (w // 2, h // 2)
+            M_rot = cv2.getRotationMatrix2D(center, rotation, 1.0)
+            result = cv2.warpAffine(result, M_rot, (w, h), borderMode=cv2.BORDER_REPLICATE)
             
         elif base_transform == 'low_angle_45':
-            offset = random.uniform(0.1, 0.2) if has_extra else 0.15
+            offset = rng.uniform(0.05, 0.25)
+            rotation = rng.uniform(-18, 18)
+            top_y = rng.uniform(0.3, 0.5)
+            tilt = rng.uniform(-0.12, 0.12)
             pts1 = np.float32([[0, 0], [w, 0], [0, h], [w, h]])
-            pts2 = np.float32([[w*offset, h*0.4], [w*(1-offset), h*0.4], [w*0.0, h*1.0], [w*1.0, h*1.0]])
+            pts2 = np.float32([
+                [w*(offset + tilt), h*top_y], 
+                [w*(1-offset + tilt), h*top_y], 
+                [w*(0.0 - tilt), h*1.0], 
+                [w*(1.0 - tilt), h*1.0]
+            ])
             M = cv2.getPerspectiveTransform(pts1, pts2)
             result = cv2.warpPerspective(result, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
+            center = (w // 2, h // 2)
+            M_rot = cv2.getRotationMatrix2D(center, rotation, 1.0)
+            result = cv2.warpAffine(result, M_rot, (w, h), borderMode=cv2.BORDER_REPLICATE)
         
         elif base_transform == 'side_view_left':
-            offset = random.uniform(0.65, 0.75) if has_extra else 0.7
+            offset = rng.uniform(0.6, 0.8)
+            rotation = rng.uniform(-20, 20)
+            top_y = rng.uniform(0.05, 0.15)
+            bottom_y = rng.uniform(0.85, 0.95)
+            tilt = rng.uniform(-0.1, 0.1)
             pts1 = np.float32([[0, 0], [w, 0], [0, h], [w, h]])
-            pts2 = np.float32([[w*0.0, h*0.1], [w*offset, h*0.1], [w*0.0, h*0.9], [w*offset, h*0.9]])
+            pts2 = np.float32([
+                [w*(0.0 + tilt), h*top_y], 
+                [w*(offset + tilt), h*top_y], 
+                [w*(0.0 - tilt), h*bottom_y], 
+                [w*(offset - tilt), h*bottom_y]
+            ])
             M = cv2.getPerspectiveTransform(pts1, pts2)
             result = cv2.warpPerspective(result, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
+            center = (w // 2, h // 2)
+            M_rot = cv2.getRotationMatrix2D(center, rotation, 1.0)
+            result = cv2.warpAffine(result, M_rot, (w, h), borderMode=cv2.BORDER_REPLICATE)
             
         elif base_transform == 'side_view_right':
-            offset = random.uniform(0.25, 0.35) if has_extra else 0.3
+            offset = rng.uniform(0.2, 0.4)
+            rotation = rng.uniform(-20, 20)
+            top_y = rng.uniform(0.05, 0.15)
+            bottom_y = rng.uniform(0.85, 0.95)
+            tilt = rng.uniform(-0.1, 0.1)
             pts1 = np.float32([[0, 0], [w, 0], [0, h], [w, h]])
-            pts2 = np.float32([[w*offset, h*0.1], [w*1.0, h*0.1], [w*offset, h*0.9], [w*1.0, h*0.9]])
+            pts2 = np.float32([
+                [w*(offset + tilt), h*top_y], 
+                [w*(1.0 + tilt), h*top_y], 
+                [w*(offset - tilt), h*bottom_y], 
+                [w*(1.0 - tilt), h*bottom_y]
+            ])
             M = cv2.getPerspectiveTransform(pts1, pts2)
             result = cv2.warpPerspective(result, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
+            center = (w // 2, h // 2)
+            M_rot = cv2.getRotationMatrix2D(center, rotation, 1.0)
+            result = cv2.warpAffine(result, M_rot, (w, h), borderMode=cv2.BORDER_REPLICATE)
         
         elif base_transform == 'oblique_30':
-            angle = random.uniform(25, 35) if has_extra else 30
+            angle = rng.uniform(20, 40)
+            scale = rng.uniform(0.9, 1.1)
             center = (w // 2, h // 2)
-            M = cv2.getRotationMatrix2D(center, angle, 1.0)
+            M = cv2.getRotationMatrix2D(center, angle, scale)
             result = cv2.warpAffine(result, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
-            offset = random.uniform(0.05, 0.15) if has_extra else 0.1
+            offset = rng.uniform(0.02, 0.2)
+            tilt = rng.uniform(-0.12, 0.12)
             pts1 = np.float32([[0, 0], [w, 0], [0, h], [w, h]])
-            pts2 = np.float32([[w*offset, h*offset], [w*(1-offset), h*offset], [w*0.0, h*0.9], [w*1.0, h*0.9]])
+            pts2 = np.float32([
+                [w*(offset + tilt), h*(offset - tilt)], 
+                [w*(1-offset + tilt), h*(offset + tilt)], 
+                [w*(0.0 - tilt), h*0.9], 
+                [w*(1.0 - tilt), h*0.9]
+            ])
             M2 = cv2.getPerspectiveTransform(pts1, pts2)
             result = cv2.warpPerspective(result, M2, (w, h), borderMode=cv2.BORDER_REPLICATE)
             
         elif base_transform == 'oblique_45':
-            angle = random.uniform(40, 50) if has_extra else 45
+            angle = rng.uniform(35, 55)
+            scale = rng.uniform(0.85, 1.15)
             center = (w // 2, h // 2)
-            M = cv2.getRotationMatrix2D(center, angle, 1.0)
+            M = cv2.getRotationMatrix2D(center, angle, scale)
             result = cv2.warpAffine(result, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
-            offset = random.uniform(0.1, 0.2) if has_extra else 0.15
+            offset = rng.uniform(0.05, 0.25)
+            tilt = rng.uniform(-0.15, 0.15)
             pts1 = np.float32([[0, 0], [w, 0], [0, h], [w, h]])
-            pts2 = np.float32([[w*offset, h*offset], [w*(1-offset), h*offset], [w*0.05, h*0.95], [w*0.95, h*0.95]])
+            pts2 = np.float32([
+                [w*(offset + tilt), h*(offset - tilt)], 
+                [w*(1-offset + tilt), h*(offset + tilt)], 
+                [w*(0.05 - tilt), h*0.95], 
+                [w*(0.95 - tilt), h*0.95]
+            ])
             M2 = cv2.getPerspectiveTransform(pts1, pts2)
             result = cv2.warpPerspective(result, M2, (w, h), borderMode=cv2.BORDER_REPLICATE)
             
         elif base_transform == 'oblique_60':
-            angle = random.uniform(55, 65) if has_extra else 60
+            angle = rng.uniform(50, 70)
+            scale = rng.uniform(0.8, 1.2)
+            center = (w // 2, h // 2)
+            M = cv2.getRotationMatrix2D(center, angle, scale)
+            result = cv2.warpAffine(result, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
+            offset = rng.uniform(0.1, 0.3)
+            tilt = rng.uniform(-0.18, 0.18)
+            pts1 = np.float32([[0, 0], [w, 0], [0, h], [w, h]])
+            pts2 = np.float32([
+                [w*(offset + tilt), h*(offset - tilt)], 
+                [w*(1-offset + tilt), h*(offset + tilt)], 
+                [w*(0.1 - tilt), h*0.9], 
+                [w*(0.9 - tilt), h*0.9]
+            ])
+            M2 = cv2.getPerspectiveTransform(pts1, pts2)
+            result = cv2.warpPerspective(result, M2, (w, h), borderMode=cv2.BORDER_REPLICATE)
+        
+        elif base_transform == 'bird_eye' or transform_type == 'bird_eye':
+            offset = rng.uniform(0.02, 0.12)
+            rotation = rng.uniform(-25, 25)
+            scale = rng.uniform(0.85, 0.95)
+            pts1 = np.float32([[0, 0], [w, 0], [0, h], [w, h]])
+            pts2 = np.float32([
+                [w*offset, h*offset], 
+                [w*(1-offset), h*offset], 
+                [w*offset, h*(1-offset)], 
+                [w*(1-offset), h*(1-offset)]
+            ])
+            M = cv2.getPerspectiveTransform(pts1, pts2)
+            result = cv2.warpPerspective(result, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
+            center = (w/2, h/2)
+            M_scale = cv2.getRotationMatrix2D(center, rotation, scale)
+            result = cv2.warpAffine(result, M_scale, (w, h), borderMode=cv2.BORDER_REPLICATE)
+            
+        elif base_transform == 'worm_eye' or transform_type == 'worm_eye':
+            offset_x = rng.uniform(0.15, 0.25)
+            center_y = rng.uniform(0.45, 0.55)
+            rotation = rng.uniform(-30, 30)
+            tilt = rng.uniform(-0.15, 0.15)
+            pts1 = np.float32([[0, 0], [w, 0], [0, h], [w, h]])
+            pts2 = np.float32([
+                [w*(offset_x + tilt), h*center_y], 
+                [w*(1-offset_x + tilt), h*center_y], 
+                [w*(0.0 - tilt), h*1.0], 
+                [w*(1.0 - tilt), h*1.0]
+            ])
+            M = cv2.getPerspectiveTransform(pts1, pts2)
+            result = cv2.warpPerspective(result, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
+            center = (w // 2, h // 2)
+            M_rot = cv2.getRotationMatrix2D(center, rotation, 1.0)
+            result = cv2.warpAffine(result, M_rot, (w, h), borderMode=cv2.BORDER_REPLICATE)
+        
+        elif base_transform == 'diagonal_up' or transform_type == 'diagonal_up':
+            top_y = rng.uniform(0.1, 0.3)
+            bottom_y = rng.uniform(0.7, 0.9)
+            left_x = rng.uniform(0.0, 0.2)
+            right_x = rng.uniform(0.8, 1.0)
+            rotation = rng.uniform(-20, 20)
+            pts1 = np.float32([[0, 0], [w, 0], [0, h], [w, h]])
+            pts2 = np.float32([
+                [w*left_x, h*top_y], 
+                [w*right_x, h*0.0], 
+                [w*(left_x + 0.2), h*bottom_y], 
+                [w*1.0, h*(bottom_y - 0.1)]
+            ])
+            M = cv2.getPerspectiveTransform(pts1, pts2)
+            result = cv2.warpPerspective(result, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
+            center = (w // 2, h // 2)
+            M_rot = cv2.getRotationMatrix2D(center, rotation, 1.0)
+            result = cv2.warpAffine(result, M_rot, (w, h), borderMode=cv2.BORDER_REPLICATE)
+            
+        elif base_transform == 'diagonal_down' or transform_type == 'diagonal_down':
+            top_y = rng.uniform(0.0, 0.2)
+            bottom_y = rng.uniform(0.7, 0.9)
+            left_x = rng.uniform(0.0, 0.2)
+            right_x = rng.uniform(0.8, 1.0)
+            rotation = rng.uniform(-20, 20)
+            pts1 = np.float32([[0, 0], [w, 0], [0, h], [w, h]])
+            pts2 = np.float32([
+                [w*(left_x + 0.2), h*top_y], 
+                [w*1.0, h*(top_y + 0.1)], 
+                [w*left_x, h*bottom_y], 
+                [w*right_x, h*1.0]
+            ])
+            M = cv2.getPerspectiveTransform(pts1, pts2)
+            result = cv2.warpPerspective(result, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
+            center = (w // 2, h // 2)
+            M_rot = cv2.getRotationMatrix2D(center, rotation, 1.0)
+            result = cv2.warpAffine(result, M_rot, (w, h), borderMode=cv2.BORDER_REPLICATE)
+        
+        elif base_transform == 'tilt_left' or transform_type == 'tilt_left':
+            angle = rng.uniform(-25, -5)
+            rotation2 = rng.uniform(-10, 10)
             center = (w // 2, h // 2)
             M = cv2.getRotationMatrix2D(center, angle, 1.0)
             result = cv2.warpAffine(result, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
-            offset = random.uniform(0.15, 0.25) if has_extra else 0.2
+            offset = rng.uniform(0.05, 0.15)
+            tilt = rng.uniform(-0.1, 0.1)
             pts1 = np.float32([[0, 0], [w, 0], [0, h], [w, h]])
-            pts2 = np.float32([[w*offset, h*offset], [w*(1-offset), h*offset], [w*0.1, h*0.9], [w*0.9, h*0.9]])
+            pts2 = np.float32([
+                [w*(offset + tilt), h*0.0], 
+                [w*(1-offset + tilt), h*0.1], 
+                [w*(offset - tilt), h*1.0], 
+                [w*(1-offset - tilt), h*0.9]
+            ])
             M2 = cv2.getPerspectiveTransform(pts1, pts2)
             result = cv2.warpPerspective(result, M2, (w, h), borderMode=cv2.BORDER_REPLICATE)
-        
-        elif transform_type == 'bird_eye':
-            pts1 = np.float32([[0, 0], [w, 0], [0, h], [w, h]])
-            pts2 = np.float32([[w*0.05, h*0.05], [w*0.95, h*0.05], [w*0.05, h*0.95], [w*0.95, h*0.95]])
-            M = cv2.getPerspectiveTransform(pts1, pts2)
-            result = cv2.warpPerspective(result, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
-            M_scale = cv2.getRotationMatrix2D((w/2, h/2), 0, 0.9)
-            result = cv2.warpAffine(result, M_scale, (w, h), borderMode=cv2.BORDER_REPLICATE)
+            M_rot2 = cv2.getRotationMatrix2D(center, rotation2, 1.0)
+            result = cv2.warpAffine(result, M_rot2, (w, h), borderMode=cv2.BORDER_REPLICATE)
             
-        elif transform_type == 'worm_eye':
-            pts1 = np.float32([[0, 0], [w, 0], [0, h], [w, h]])
-            pts2 = np.float32([[w*0.2, h*0.5], [w*0.8, h*0.5], [w*0.0, h*1.0], [w*1.0, h*1.0]])
-            M = cv2.getPerspectiveTransform(pts1, pts2)
-            result = cv2.warpPerspective(result, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
-        
-        elif transform_type == 'diagonal_up':
-            pts1 = np.float32([[0, 0], [w, 0], [0, h], [w, h]])
-            pts2 = np.float32([[w*0.0, h*0.2], [w*0.8, h*0.0], [w*0.2, h*1.0], [w*1.0, h*0.8]])
-            M = cv2.getPerspectiveTransform(pts1, pts2)
-            result = cv2.warpPerspective(result, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
-            
-        elif transform_type == 'diagonal_down':
-            pts1 = np.float32([[0, 0], [w, 0], [0, h], [w, h]])
-            pts2 = np.float32([[w*0.2, h*0.0], [w*1.0, h*0.2], [w*0.0, h*0.8], [w*0.8, h*1.0]])
-            M = cv2.getPerspectiveTransform(pts1, pts2)
-            result = cv2.warpPerspective(result, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
-        
-        elif transform_type == 'tilt_left':
+        elif base_transform == 'tilt_right' or transform_type == 'tilt_right':
+            angle = rng.uniform(5, 25)
+            rotation2 = rng.uniform(-10, 10)
             center = (w // 2, h // 2)
-            M = cv2.getRotationMatrix2D(center, -15, 1.0)
+            M = cv2.getRotationMatrix2D(center, angle, 1.0)
             result = cv2.warpAffine(result, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
+            offset = rng.uniform(0.05, 0.15)
+            tilt = rng.uniform(-0.1, 0.1)
             pts1 = np.float32([[0, 0], [w, 0], [0, h], [w, h]])
-            pts2 = np.float32([[w*0.1, h*0.0], [w*0.9, h*0.1], [w*0.1, h*1.0], [w*0.9, h*0.9]])
+            pts2 = np.float32([
+                [w*(offset + tilt), h*0.1], 
+                [w*(1-offset + tilt), h*0.0], 
+                [w*(offset - tilt), h*0.9], 
+                [w*(1-offset - tilt), h*1.0]
+            ])
+            M2 = cv2.getPerspectiveTransform(pts1, pts2)
+            result = cv2.warpPerspective(result, M2, (w, h), borderMode=cv2.BORDER_REPLICATE)
+            M_rot2 = cv2.getRotationMatrix2D(center, rotation2, 1.0)
+            result = cv2.warpAffine(result, M_rot2, (w, h), borderMode=cv2.BORDER_REPLICATE)
+        
+        elif base_transform == 'panoramic_wide' or transform_type == 'panoramic_wide':
+            top_y = rng.uniform(0.1, 0.2)
+            bottom_y = rng.uniform(0.8, 0.9)
+            rotation = rng.uniform(-15, 15)
+            tilt = rng.uniform(-0.08, 0.08)
+            pts1 = np.float32([[0, 0], [w, 0], [0, h], [w, h]])
+            pts2 = np.float32([
+                [w*(0.0 + tilt), h*top_y], 
+                [w*(1.0 + tilt), h*top_y], 
+                [w*(0.0 - tilt), h*bottom_y], 
+                [w*(1.0 - tilt), h*bottom_y]
+            ])
+            M = cv2.getPerspectiveTransform(pts1, pts2)
+            result = cv2.warpPerspective(result, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
+            center = (w // 2, h // 2)
+            M_rot = cv2.getRotationMatrix2D(center, rotation, 1.0)
+            result = cv2.warpAffine(result, M_rot, (w, h), borderMode=cv2.BORDER_REPLICATE)
+            
+        elif base_transform == 'panoramic_narrow' or transform_type == 'panoramic_narrow':
+            offset = rng.uniform(0.05, 0.15)
+            rotation = rng.uniform(-20, 20)
+            tilt = rng.uniform(-0.1, 0.1)
+            pts1 = np.float32([[0, 0], [w, 0], [0, h], [w, h]])
+            pts2 = np.float32([
+                [w*(offset + tilt), h*0.0], 
+                [w*(1-offset + tilt), h*0.0], 
+                [w*(offset - tilt), h*1.0], 
+                [w*(1-offset - tilt), h*1.0]
+            ])
+            M = cv2.getPerspectiveTransform(pts1, pts2)
+            result = cv2.warpPerspective(result, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
+            center = (w // 2, h // 2)
+            M_rot = cv2.getRotationMatrix2D(center, rotation, 1.0)
+            result = cv2.warpAffine(result, M_rot, (w, h), borderMode=cv2.BORDER_REPLICATE)
+        
+        elif base_transform == 'zoom_extreme' or transform_type == 'zoom_extreme':
+            scale = rng.uniform(1.3, 1.8)
+            rotation = rng.uniform(-30, 30)
+            center = (w // 2, h // 2)
+            M = cv2.getRotationMatrix2D(center, rotation, scale)
+            result = cv2.warpAffine(result, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
+        
+        elif base_transform == 'rotate_3d_45' or transform_type == 'rotate_3d_45':
+            angle = rng.uniform(35, 55)
+            scale = rng.uniform(0.9, 1.1)
+            center = (w // 2, h // 2)
+            M = cv2.getRotationMatrix2D(center, angle, scale)
+            result = cv2.warpAffine(result, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
+            offset = rng.uniform(0.05, 0.15)
+            tilt = rng.uniform(-0.12, 0.12)
+            pts1 = np.float32([[0, 0], [w, 0], [0, h], [w, h]])
+            pts2 = np.float32([
+                [w*(offset + tilt), h*(offset - tilt)], 
+                [w*(1-offset + tilt), h*(offset + tilt)], 
+                [w*(offset - tilt), h*(1-offset + tilt)], 
+                [w*(1-offset - tilt), h*(1-offset - tilt)]
+            ])
             M2 = cv2.getPerspectiveTransform(pts1, pts2)
             result = cv2.warpPerspective(result, M2, (w, h), borderMode=cv2.BORDER_REPLICATE)
             
-        elif transform_type == 'tilt_right':
+        elif base_transform == 'rotate_3d_90' or transform_type == 'rotate_3d_90':
+            angle = rng.uniform(80, 100)
+            scale = rng.uniform(0.85, 1.15)
             center = (w // 2, h // 2)
-            M = cv2.getRotationMatrix2D(center, 15, 1.0)
+            M = cv2.getRotationMatrix2D(center, angle, scale)
             result = cv2.warpAffine(result, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
-            pts1 = np.float32([[0, 0], [w, 0], [0, h], [w, h]])
-            pts2 = np.float32([[w*0.1, h*0.1], [w*0.9, h*0.0], [w*0.1, h*0.9], [w*0.9, h*1.0]])
-            M2 = cv2.getPerspectiveTransform(pts1, pts2)
-            result = cv2.warpPerspective(result, M2, (w, h), borderMode=cv2.BORDER_REPLICATE)
         
-        elif transform_type == 'panoramic_wide':
+        elif base_transform == 'perspective_strong' or transform_type == 'perspective_strong':
+            top_offset = rng.uniform(0.15, 0.25)
+            bottom_y = rng.uniform(0.95, 1.0)
+            rotation = rng.uniform(-25, 25)
+            tilt = rng.uniform(-0.15, 0.15)
             pts1 = np.float32([[0, 0], [w, 0], [0, h], [w, h]])
-            pts2 = np.float32([[w*0.0, h*0.15], [w*1.0, h*0.15], [w*0.0, h*0.85], [w*1.0, h*0.85]])
+            pts2 = np.float32([
+                [w*(top_offset + tilt), h*top_offset], 
+                [w*(1-top_offset + tilt), h*top_offset], 
+                [w*(0.0 - tilt), h*bottom_y], 
+                [w*(1.0 - tilt), h*bottom_y]
+            ])
             M = cv2.getPerspectiveTransform(pts1, pts2)
             result = cv2.warpPerspective(result, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
-            
-        elif transform_type == 'panoramic_narrow':
-            pts1 = np.float32([[0, 0], [w, 0], [0, h], [w, h]])
-            pts2 = np.float32([[w*0.1, h*0.0], [w*0.9, h*0.0], [w*0.1, h*1.0], [w*0.9, h*1.0]])
-            M = cv2.getPerspectiveTransform(pts1, pts2)
-            result = cv2.warpPerspective(result, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
-        
-        elif transform_type == 'zoom_extreme':
             center = (w // 2, h // 2)
-            M = cv2.getRotationMatrix2D(center, 0, 1.5)
-            result = cv2.warpAffine(result, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
+            M_rot = cv2.getRotationMatrix2D(center, rotation, 1.0)
+            result = cv2.warpAffine(result, M_rot, (w, h), borderMode=cv2.BORDER_REPLICATE)
         
-        elif transform_type == 'rotate_3d_45':
-            center = (w // 2, h // 2)
-            M = cv2.getRotationMatrix2D(center, 45, 1.0)
-            result = cv2.warpAffine(result, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
-            pts1 = np.float32([[0, 0], [w, 0], [0, h], [w, h]])
-            pts2 = np.float32([[w*0.1, h*0.1], [w*0.9, h*0.1], [w*0.1, h*0.9], [w*0.9, h*0.9]])
-            M2 = cv2.getPerspectiveTransform(pts1, pts2)
-            result = cv2.warpPerspective(result, M2, (w, h), borderMode=cv2.BORDER_REPLICATE)
-            
-        elif transform_type == 'rotate_3d_90':
-            center = (w // 2, h // 2)
-            M = cv2.getRotationMatrix2D(center, 90, 1.0)
-            result = cv2.warpAffine(result, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
-        
-        elif transform_type == 'perspective_strong':
-            pts1 = np.float32([[0, 0], [w, 0], [0, h], [w, h]])
-            pts2 = np.float32([[w*0.2, h*0.2], [w*0.8, h*0.2], [w*0.0, h*1.0], [w*1.0, h*1.0]])
-            M = cv2.getPerspectiveTransform(pts1, pts2)
-            result = cv2.warpPerspective(result, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
-        
-        elif transform_type == 'fisheye_effect':
+        elif base_transform == 'fisheye_effect' or transform_type == 'fisheye_effect':
             h, w = result.shape[:2]
             center_x, center_y = w // 2, h // 2
             max_radius = min(center_x, center_y)
+            # 使用随机强度
+            strength = rng.uniform(0.5, 0.9)
+            offset_x = rng.uniform(-w*0.05, w*0.05)
+            offset_y = rng.uniform(-h*0.05, h*0.05)
             map_x = np.zeros((h, w), dtype=np.float32)
             map_y = np.zeros((h, w), dtype=np.float32)
             for y in range(h):
                 for x in range(w):
-                    dx = x - center_x
-                    dy = y - center_y
+                    dx = x - center_x + offset_x
+                    dy = y - center_y + offset_y
                     r = math.sqrt(dx*dx + dy*dy) / max_radius
                     if r > 0:
                         theta = math.atan2(dy, dx)
-                        r_new = r * r * 0.7
+                        r_new = r * r * strength
                         map_x[y, x] = center_x + r_new * max_radius * math.cos(theta)
                         map_y[y, x] = center_y + r_new * max_radius * math.sin(theta)
                     else:
                         map_x[y, x] = x
                         map_y[y, x] = y
             result = cv2.remap(result, map_x, map_y, cv2.INTER_LINEAR, borderMode=cv2.BORDER_REPLICATE)
+        
+        # 最后添加一个随机的小幅变换，确保每次都不一样
+        if base_transform != 'original':
+            final_rotation = rng.uniform(-5, 5)
+            final_scale = rng.uniform(0.98, 1.02)
+            center = (w // 2, h // 2)
+            M_final = cv2.getRotationMatrix2D(center, final_rotation, final_scale)
+            result = cv2.warpAffine(result, M_final, (w, h), borderMode=cv2.BORDER_REPLICATE)
         
         return result
 

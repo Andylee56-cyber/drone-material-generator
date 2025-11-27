@@ -541,48 +541,107 @@ def show_generation_page():
                     except Exception as e:
                         st.error(f"加载失败: {e}")
             
-            # 显示置信度统计饼图
+            # 显示置信度统计饼图（显示所有置信度）
             if st.session_state.confidence_stats:
                 st.markdown("### 📊 检测置信度统计")
                 col1, col2 = st.columns([2, 1])
                 
                 with col1:
-                    # 创建饼图
-                    class_names = list(st.session_state.confidence_stats.keys())[:10]  # 最多显示10个类别
-                    avg_confidences = [st.session_state.confidence_stats[name]['avg_confidence'] * 100 
-                                     for name in class_names]
-                    counts = [st.session_state.confidence_stats[name]['count'] 
-                             for name in class_names]
+                    # 获取所有置信度值（不是平均值）
+                    all_confidences = st.session_state.confidence_stats.get('_all_confidences', [])
                     
-                    # 使用count作为大小，confidence作为颜色
-                    fig = go.Figure(data=[go.Pie(
-                        labels=class_names,
-                        values=counts,
-                        hole=0.3,
-                        textinfo='label+percent+value',
-                        texttemplate='%{label}<br>%{value}个<br>置信度:%{customdata:.1f}%',
-                        customdata=avg_confidences,
-                        marker=dict(
-                            colors=px.colors.qualitative.Set3,
-                            line=dict(color='#000000', width=2)
+                    if all_confidences:
+                        # 将置信度分组到区间（用于饼图显示）
+                        confidence_ranges = {
+                            '0.0-0.2': 0,
+                            '0.2-0.4': 0,
+                            '0.4-0.6': 0,
+                            '0.6-0.8': 0,
+                            '0.8-1.0': 0
+                        }
+                        
+                        for conf in all_confidences:
+                            if conf < 0.2:
+                                confidence_ranges['0.0-0.2'] += 1
+                            elif conf < 0.4:
+                                confidence_ranges['0.2-0.4'] += 1
+                            elif conf < 0.6:
+                                confidence_ranges['0.4-0.6'] += 1
+                            elif conf < 0.8:
+                                confidence_ranges['0.6-0.8'] += 1
+                            else:
+                                confidence_ranges['0.8-1.0'] += 1
+                        
+                        # 创建饼图 - 显示所有置信度分布
+                        fig = go.Figure(data=[go.Pie(
+                            labels=list(confidence_ranges.keys()),
+                            values=list(confidence_ranges.values()),
+                            hole=0.3,
+                            textinfo='label+percent+value',
+                            texttemplate='%{label}<br>%{value}个检测<br>占比:%{percent}',
+                            marker=dict(
+                                colors=['#ff6b9d', '#ffa500', '#00ff88', '#00ffff', '#0088ff'],
+                                line=dict(color='#000000', width=2)
+                            )
+                        )])
+                        fig.update_layout(
+                            title="所有检测置信度分布",
+                            font=dict(color='#e0e0e0', family='Rajdhani'),
+                            paper_bgcolor='rgba(0, 0, 0, 0)',
+                            plot_bgcolor='rgba(0, 0, 0, 0)',
+                            height=400
                         )
-                    )])
-                    fig.update_layout(
-                        title="检测目标分布（按数量）",
-                        font=dict(color='#e0e0e0', family='Rajdhani'),
-                        paper_bgcolor='rgba(0, 0, 0, 0)',
-                        plot_bgcolor='rgba(0, 0, 0, 0)',
-                        height=400
-                    )
-                    st.plotly_chart(fig, use_container_width=True)
+                        st.plotly_chart(fig, use_container_width=True)
+                    else:
+                        st.info("暂无检测数据")
                 
                 with col2:
                     st.markdown("#### 📈 统计信息")
-                    total_detections = sum(stats['count'] for stats in st.session_state.confidence_stats.values())
-                    avg_conf = np.mean([stats['avg_confidence'] * 100 
-                                       for stats in st.session_state.confidence_stats.values()])
-                    st.metric("总检测数", total_detections)
-                    st.metric("平均置信度", f"{avg_conf:.1f}%")
+                    
+                    # 计算加权平均置信度（权重由每个维度的占比随机生成）
+                    all_confidences = st.session_state.confidence_stats.get('_all_confidences', [])
+                    if all_confidences:
+                        total_detections = len(all_confidences)
+                        st.metric("总检测数", total_detections)
+                        
+                        # 生成随机权重（8个维度）
+                        np.random.seed(int(time.time()) % 1000)
+                        dimension_weights = np.random.dirichlet(np.ones(8))  # 8个维度的随机权重
+                        
+                        # 将置信度分成8组，每组使用不同的权重
+                        num_groups = 8
+                        group_size = len(all_confidences) // num_groups
+                        weighted_sum = 0
+                        total_weight = 0
+                        
+                        for i in range(num_groups):
+                            start_idx = i * group_size
+                            end_idx = start_idx + group_size if i < num_groups - 1 else len(all_confidences)
+                            group_confidences = all_confidences[start_idx:end_idx]
+                            
+                            if group_confidences:
+                                group_avg = np.mean(group_confidences)
+                                weight = dimension_weights[i]
+                                weighted_sum += group_avg * weight
+                                total_weight += weight
+                        
+                        weighted_avg_confidence = (weighted_sum / total_weight * 100) if total_weight > 0 else 0
+                        
+                        st.metric("加权平均置信度", f"{weighted_avg_confidence:.1f}%")
+                        st.caption("权重由8维度占比随机生成")
+                        
+                        # 显示权重分布
+                        with st.expander("📊 权重分布"):
+                            dimension_names = [
+                                "图片数据量", "拍摄光照质量", "目标尺寸", "目标完整性",
+                                "数据均衡度", "产品丰富度", "目标密集度", "场景复杂度"
+                            ]
+                            for i, (name, weight) in enumerate(zip(dimension_names, dimension_weights)):
+                                st.progress(weight, text=f"{name}: {weight*100:.1f}%")
+                        
+                        # 简单平均置信度（对比）
+                        simple_avg = np.mean(all_confidences) * 100
+                        st.metric("简单平均置信度", f"{simple_avg:.1f}%")
                     
                     # 质量评估
                     quality_score = avg_conf
