@@ -109,23 +109,14 @@ if not AGENTS_AVAILABLE:
             raise RuntimeError(f"ImageMultiAngleGenerator 不可用: {self._error}")
     class ImageQualityAnalyzer:
         def __init__(self, *args, **kwargs):
-            pass
+            self._error = IMPORT_ERROR or "未知错误"
+        def analyze_single_image(self, *args, **kwargs):
+            raise RuntimeError(f"ImageQualityAnalyzer 不可用: {self._error}")
     class MaterialGeneratorAgent:
         def __init__(self, *args, **kwargs):
             pass
         def analyze_and_evaluate(self, *args, **kwargs):
             raise RuntimeError(f"MaterialGeneratorAgent 不可用: {IMPORT_ERROR or '未知错误'}")
-    class MaterialEnhancementTrainer:
-        def __init__(self, *args, **kwargs):
-            pass
-    class ImageQualityAnalyzer:
-        def __init__(self, *args, **kwargs):
-            pass
-    class MaterialGeneratorAgent:
-        def __init__(self, *args, **kwargs):
-            pass
-        def analyze_and_evaluate(self, *args, **kwargs):
-            raise RuntimeError(f"MaterialGeneratorAgent 不可用: {IMPORT_ERROR}")
     class MaterialEnhancementTrainer:
         def __init__(self, *args, **kwargs):
             pass
@@ -141,7 +132,7 @@ else:
 # ========== 模型缓存函数（关键优化 - 支持GPU加速） ==========
 @st.cache_resource
 def get_generator(draw_boxes=True):
-    """获取生成器，只初始化一次，自动使用GPU"""
+    """获取生成器，只初始化一次，自动使用GPU，忽略 libGL 错误"""
     if not AGENTS_AVAILABLE:
         # 如果 agents 不可用，返回占位生成器
         return ImageMultiAngleGenerator(draw_boxes=draw_boxes)
@@ -156,12 +147,35 @@ def get_generator(draw_boxes=True):
         return generator
     except Exception as e:
         error_msg = str(e)
-        # 如果是 OpenCV 相关的错误，生成器应该仍然可以工作（使用 PIL 降级）
-        # 只有在真正的初始化失败时才返回占位生成器
-        if 'libGL' in error_msg or 'OpenCV' in error_msg or 'cv2' in error_msg:
-            # OpenCV 错误不应该阻止生成器初始化，它应该使用 PIL 降级
+        # libGL 错误不应该阻止生成器使用（OpenCV headless 不需要 libGL）
+        if 'libGL' in error_msg or 'libGL.so' in error_msg:
+            print(f"⚠️ 检测到 libGL 警告，但生成器仍可使用: {e}")
+            # 强制再次初始化，忽略 libGL 错误
+            try:
+                # 设置环境变量后再次尝试
+                import os
+                os.environ['OPENCV_DISABLE_OPENCL'] = '1'
+                os.environ['QT_QPA_PLATFORM'] = 'offscreen'
+                os.environ['DISPLAY'] = ''
+                os.environ['LIBGL_ALWAYS_SOFTWARE'] = '1'
+                generator = ImageMultiAngleGenerator(draw_boxes=draw_boxes)
+                return generator
+            except Exception as e2:
+                # 如果还是失败，但错误仍然是 libGL，继续尝试
+                if 'libGL' in str(e2) or 'libGL.so' in str(e2):
+                    print(f"⚠️ 再次检测到 libGL 警告，但继续使用生成器: {e2}")
+                    # 最后一次尝试：直接创建实例（忽略所有警告）
+                    try:
+                        import warnings
+                        warnings.filterwarnings('ignore')
+                        generator = ImageMultiAngleGenerator(draw_boxes=draw_boxes)
+                        return generator
+                    except:
+                        pass
+                print(f"生成器初始化失败（第二次尝试）: {e2}")
+        # 如果是 OpenCV 相关的其他错误，生成器应该仍然可以工作（使用 PIL 降级）
+        elif 'OpenCV' in error_msg or 'cv2' in error_msg:
             print(f"⚠️ OpenCV 相关错误，但生成器仍可使用 PIL 降级: {e}")
-            # 尝试再次初始化（这次应该能成功，因为类已经定义了）
             try:
                 generator = ImageMultiAngleGenerator(draw_boxes=draw_boxes)
                 return generator
@@ -173,15 +187,28 @@ def get_generator(draw_boxes=True):
 
 @st.cache_resource
 def get_quality_analyzer():
-    """获取质量分析器，只初始化一次，自动使用GPU"""
+    """获取质量分析器，只初始化一次，自动使用GPU，忽略 libGL 错误"""
     if not AGENTS_AVAILABLE:
         return None
     try:
         analyzer = ImageQualityAnalyzer()
         return analyzer
     except Exception as e:
-        print(f"质量分析器初始化失败: {e}")
-        return None
+        error_msg = str(e)
+        # libGL 错误不应该阻止质量分析器使用
+        if 'libGL' in error_msg or 'libGL.so' in error_msg:
+            print(f"⚠️ 检测到 libGL 警告，但质量分析器仍可使用: {e}")
+            # 尝试再次初始化（OpenCV 应该能正常工作，只是有警告）
+            try:
+                analyzer = ImageQualityAnalyzer()
+                return analyzer
+            except Exception as e2:
+                # 如果还是失败，返回 None，但记录错误
+                print(f"质量分析器初始化失败（第二次尝试）: {e2}")
+                return None
+        else:
+            print(f"质量分析器初始化失败: {e}")
+            return None
 
 @st.cache_resource
 def get_agent():
@@ -357,13 +384,46 @@ if uploaded_file is not None:
             try:
                 quality_analyzer = get_quality_analyzer()
                 if quality_analyzer is not None:
-                    st.session_state.original_image_quality = quality_analyzer.analyze_single_image(str(temp_path))
-                    st.session_state.last_uploaded_file = uploaded_file.name
+                    try:
+                        st.session_state.original_image_quality = quality_analyzer.analyze_single_image(str(temp_path))
+                        st.session_state.last_uploaded_file = uploaded_file.name
+                        st.success("✅ 图片质量分析完成")
+                    except Exception as analyze_error:
+                        error_str = str(analyze_error)
+                        # 如果是 libGL 错误，不应该阻止分析
+                        if 'libGL' in error_str or 'libGL.so' in error_str:
+                            # 尝试使用 PIL 降级方案
+                            st.warning(f"⚠️ 检测到 libGL 警告，尝试使用降级方案分析...")
+                            try:
+                                # 使用 PIL 降级方案
+                                st.session_state.original_image_quality = quality_analyzer._analyze_with_pil(str(temp_path))
+                                st.session_state.last_uploaded_file = uploaded_file.name
+                                st.success("✅ 图片质量分析完成（使用降级方案）")
+                            except Exception as e2:
+                                st.warning(f"⚠️ 图片质量分析失败: {e2}")
+                                st.session_state.original_image_quality = None
+                        else:
+                            st.warning(f"⚠️ 图片质量分析失败: {analyze_error}")
+                            st.session_state.original_image_quality = None
                 else:
                     st.warning("⚠️ 质量分析器不可用，无法分析图片质量")
             except Exception as e:
-                st.warning(f"⚠️ 图片质量分析失败: {e}")
-                st.session_state.original_image_quality = None
+                error_str = str(e)
+                if 'libGL' in error_str or 'libGL.so' in error_str:
+                    st.warning(f"⚠️ 检测到 libGL 警告，但继续尝试分析...")
+                    # 尝试强制初始化
+                    try:
+                        from agents.image_quality_analyzer import ImageQualityAnalyzer
+                        quality_analyzer = ImageQualityAnalyzer()
+                        st.session_state.original_image_quality = quality_analyzer.analyze_single_image(str(temp_path))
+                        st.session_state.last_uploaded_file = uploaded_file.name
+                        st.success("✅ 图片质量分析完成")
+                    except Exception as e2:
+                        st.warning(f"⚠️ 图片质量分析失败: {e2}")
+                        st.session_state.original_image_quality = None
+                else:
+                    st.warning(f"⚠️ 图片质量分析失败: {e}")
+                    st.session_state.original_image_quality = None
 
     col1, col2 = st.columns([1,1])
     with col1:
@@ -395,11 +455,33 @@ if uploaded_file is not None:
                         st.error(f"❌ 生成器不可用。错误: {IMPORT_ERROR if not AGENTS_AVAILABLE else '未知错误'}")
                         st.stop()
                     
-                    result = st.session_state.generator.generate_multi_angle_images(
-                        input_image_path=str(temp_path),
-                        output_dir=str(output_dir),
-                        num_generations=num_generations
-                    )
+                    # 尝试生成，如果遇到 libGL 错误，提供友好提示
+                    try:
+                        result = st.session_state.generator.generate_multi_angle_images(
+                            input_image_path=str(temp_path),
+                            output_dir=str(output_dir),
+                            num_generations=num_generations
+                        )
+                    except RuntimeError as e:
+                        error_str = str(e)
+                        if 'libGL' in error_str or 'libGL.so' in error_str:
+                            # libGL 错误不应该阻止使用，尝试重新初始化生成器
+                            st.warning("⚠️ 检测到 libGL 警告，尝试重新初始化生成器...")
+                            try:
+                                # 清除缓存，重新获取生成器
+                                get_generator.clear()
+                                st.session_state.generator = get_generator(draw_boxes=draw_detection_boxes)
+                                result = st.session_state.generator.generate_multi_angle_images(
+                                    input_image_path=str(temp_path),
+                                    output_dir=str(output_dir),
+                                    num_generations=num_generations
+                                )
+                            except Exception as e2:
+                                st.error(f"❌ 生成器初始化失败: {e2}")
+                                st.info("💡 提示：这是 Streamlit Cloud 环境限制，libGL 库不可用，但 OpenCV headless 版本应该能正常工作。")
+                                raise
+                        else:
+                            raise
                     progress_bar.progress(50)
                     status_text.text(f"✅ 已生成 {result['num_generated']} 张素材")
                     st.session_state.generated_images = result['generated_files']
