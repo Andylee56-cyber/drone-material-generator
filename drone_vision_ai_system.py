@@ -642,9 +642,14 @@ def show_generation_page():
                         # 简单平均置信度（对比）
                         simple_avg = np.mean(all_confidences) * 100
                         st.metric("简单平均置信度", f"{simple_avg:.1f}%")
+                        
+                        # 质量评估（使用加权平均）
+                        quality_score = weighted_avg_confidence
+                    else:
+                        quality_score = 0
                     
                     # 质量评估
-                    quality_score = avg_conf
+                    if all_confidences:
                     if quality_score < 60:
                         st.warning("⚠️ 素材质量较低，建议开启增强训练")
                         if st.button("🚀 开启增强训练", type="primary", use_container_width=True):

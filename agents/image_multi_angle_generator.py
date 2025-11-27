@@ -378,18 +378,51 @@ class ImageMultiAngleGenerator:
         for idx, transform_type in enumerate(selected_transforms, 1):
             try:
                 # 为每次变换生成唯一的随机种子，确保每次变换都不同
-                random.seed(time.time() + idx * 1000 + random.randint(1, 10000))
-                np.random.seed(int(time.time() * 1000) % 2**32 + idx)
+                # 使用更激进的随机种子生成
+                seed_base = int(time.time() * 1000000) + idx * 10000 + hash(transform_type) % 100000
+                random.seed(seed_base)
+                np.random.seed(seed_base % 2**32)
                 
-                # 传递索引作为额外随机因子
-                transformed_img = self._apply_transformation(img, transform_type, h, w, random_factor=idx)
+                # 传递索引作为额外随机因子，并添加时间戳确保唯一性
+                random_factor = idx * 1000 + int(time.time() * 100) % 10000
+                transformed_img = self._apply_transformation(img.copy(), transform_type, h, w, random_factor=random_factor)
+                
+                # 验证变换是否真的应用了（检查图片是否改变）
+                cv2 = _get_cv2()
+                if cv2 is not None:
+                    # 计算图片差异
+                    if transformed_img.shape == img.shape:
+                        diff = np.abs(transformed_img.astype(np.float32) - img.astype(np.float32))
+                        mean_diff = np.mean(diff)
+                        # 如果差异太小，强制应用一个随机变换
+                        if mean_diff < 5.0:  # 阈值：平均像素差异小于5
+                            center = (w // 2, h // 2)
+                            angle = random.uniform(-45, 45)
+                            scale = random.uniform(0.85, 1.15)
+                            M = cv2.getRotationMatrix2D(center, angle, scale)
+                            transformed_img = cv2.warpAffine(transformed_img, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
+                            
+                            # 再添加一个透视变换确保不同
+                            offset = random.uniform(0.1, 0.3)
+                            pts1 = np.float32([[0, 0], [w, 0], [0, h], [w, h]])
+                            pts2 = np.float32([
+                                [w*offset, h*offset], 
+                                [w*(1-offset), h*offset], 
+                                [w*0.1, h*0.9], 
+                                [w*0.9, h*0.9]
+                            ])
+                            M2 = cv2.getPerspectiveTransform(pts1, pts2)
+                            transformed_img = cv2.warpPerspective(transformed_img, M2, (w, h), borderMode=cv2.BORDER_REPLICATE)
                 
                 # 进行目标检测并绘制检测框（每次使用不同的置信度阈值）
                 detections = []
                 if self.draw_boxes:
-                    # 为每次检测添加随机变化
-                    base_conf = 0.25 + (idx % 5) * 0.05  # 0.25-0.45之间变化
-                    transformed_img, detections = self._detect_and_draw_boxes(transformed_img, conf_threshold=base_conf)
+                    # 为每次检测添加随机变化（更大的变化范围）
+                    base_conf = 0.2 + (idx % 7) * 0.05  # 0.2-0.5之间变化，7个不同值
+                    # 添加额外的随机偏移
+                    conf_variation = random.uniform(-0.05, 0.05)
+                    final_conf = max(0.15, min(0.6, base_conf + conf_variation))
+                    transformed_img, detections = self._detect_and_draw_boxes(transformed_img, conf_threshold=final_conf)
                     all_detections.extend(detections)
                 
                 output_filename = f"generated_{idx:03d}_{transform_type}.jpg"
