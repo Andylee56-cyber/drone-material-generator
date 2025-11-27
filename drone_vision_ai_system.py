@@ -650,17 +650,18 @@ def show_generation_page():
                     
                     # 质量评估
                     if quality_score > 0:
-                        st.warning("⚠️ 素材质量较低，建议开启增强训练")
-                        if st.button("🚀 开启增强训练", type="primary", use_container_width=True):
-                            st.session_state.enhancement_mode = True
-                            st.info("增强训练模式已开启，将在下次生成时应用")
-                    elif quality_score < 80:
-                        st.info("⚡ 素材质量良好，可以进一步提升")
-                        if st.button("🚀 开启增强训练", type="secondary", use_container_width=True):
-                            st.session_state.enhancement_mode = True
-                            st.info("增强训练模式已开启")
-                    else:
-                        st.success("✅ 素材质量优秀")
+                        if quality_score < 60:
+                            st.warning("⚠️ 素材质量较低，建议开启增强训练")
+                            if st.button("🚀 开启增强训练", type="primary", use_container_width=True):
+                                st.session_state.enhancement_mode = True
+                                st.info("增强训练模式已开启，将在下次生成时应用")
+                        elif quality_score < 80:
+                            st.info("⚡ 素材质量良好，可以进一步提升")
+                            if st.button("🚀 开启增强训练", type="secondary", use_container_width=True):
+                                st.session_state.enhancement_mode = True
+                                st.info("增强训练模式已开启")
+                        else:
+                            st.success("✅ 素材质量优秀")
                     
                     # 增强训练功能
                     if st.session_state.get('enhancement_mode', False) and ENHANCEMENT_AVAILABLE:
