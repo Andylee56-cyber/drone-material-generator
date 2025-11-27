@@ -4,14 +4,23 @@
 用于分析无人机图片素材的8个关键维度，评分标准已调整为适配VisDrone数据集
 """
 
-import numpy as np
+# ========== 关键：在导入任何模块前设置环境变量 ==========
 import os
+import sys
 
-# 设置环境变量避免 OpenGL 依赖（必须在导入前设置）
+# 必须在导入numpy等之前设置环境变量
 os.environ['OPENCV_DISABLE_OPENCL'] = '1'
 os.environ['QT_QPA_PLATFORM'] = 'offscreen'
 os.environ['DISPLAY'] = ''
 os.environ['LIBGL_ALWAYS_SOFTWARE'] = '1'
+
+# 阻止加载libGL
+if 'LD_LIBRARY_PATH' in os.environ:
+    paths = os.environ['LD_LIBRARY_PATH'].split(':')
+    paths = [p for p in paths if 'libGL' not in p and 'mesa' not in p.lower()]
+    os.environ['LD_LIBRARY_PATH'] = ':'.join(paths)
+
+import numpy as np
 
 # 延迟导入 OpenCV，避免在模块级别失败
 _cv2_available = None
@@ -53,6 +62,9 @@ from PIL import Image
 import torch
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional
+
+# 延迟导入YOLO，确保环境变量已设置
+# YOLO在导入时会导入cv2，所以必须在环境变量设置后导入
 from ultralytics import YOLO
 import json
 from datetime import datetime

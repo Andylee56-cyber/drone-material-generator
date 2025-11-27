@@ -3,12 +3,21 @@
 支持真正的无人机3D视角变换，并绘制YOLO检测框
 """
 
+# ========== 关键：在导入任何模块前设置环境变量 ==========
 import os
-# 必须在任何导入前设置环境变量
+import sys
+
+# 必须在导入numpy等之前设置环境变量
 os.environ['OPENCV_DISABLE_OPENCL'] = '1'
 os.environ['QT_QPA_PLATFORM'] = 'offscreen'
 os.environ['DISPLAY'] = ''
 os.environ['LIBGL_ALWAYS_SOFTWARE'] = '1'
+
+# 阻止加载libGL
+if 'LD_LIBRARY_PATH' in os.environ:
+    paths = os.environ['LD_LIBRARY_PATH'].split(':')
+    paths = [p for p in paths if 'libGL' not in p and 'mesa' not in p.lower()]
+    os.environ['LD_LIBRARY_PATH'] = ':'.join(paths)
 
 import numpy as np
 
@@ -68,17 +77,25 @@ from datetime import datetime
 import math
 import torch
 
-# 延迟导入 YOLO，避免 ultralytics 在模块级别导入 cv2
+# 延迟导入 YOLO，确保环境变量已设置
+# 注意：YOLO在导入时会导入cv2，所以必须在环境变量设置后导入
 _YOLO = None
 def _get_yolo():
-    """延迟导入 YOLO"""
+    """延迟导入 YOLO，确保环境变量已设置"""
     global _YOLO
     if _YOLO is None:
         try:
+            # 再次确保环境变量已设置（防止ultralytics导入cv2时出错）
+            os.environ['OPENCV_DISABLE_OPENCL'] = '1'
+            os.environ['QT_QPA_PLATFORM'] = 'offscreen'
+            os.environ['DISPLAY'] = ''
+            os.environ['LIBGL_ALWAYS_SOFTWARE'] = '1'
+            
             from ultralytics import YOLO as _YOLO_CLS
             _YOLO = _YOLO_CLS
         except Exception as e:
             # 如果导入失败，返回 None
+            print(f"YOLO导入失败: {e}")
             return None
     return _YOLO
 
