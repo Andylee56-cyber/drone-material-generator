@@ -349,14 +349,26 @@ class ImageMultiAngleGenerator:
                 'perspective_strong', 'fisheye_effect', 'original'
             ]
 
-        # 随机选择变换（允许重复）
+        # 改进的随机选择算法：确保角度多样化和刁钻
+        # 优先选择不同的变换类型，避免重复
         if num_generations > len(transformations):
             selected_transforms = transformations.copy()
+            # 添加更多随机变化
             for _ in range(num_generations - len(transformations)):
-                selected_transforms.append(random.choice(transformations))
+                # 随机选择基础变换，然后添加随机参数变化
+                base_transform = random.choice(transformations)
+                # 添加随机后缀表示参数变化
+                selected_transforms.append(f"{base_transform}_var{random.randint(1, 5)}")
             random.shuffle(selected_transforms)
         else:
+            # 确保选择不同的变换
             selected_transforms = random.sample(transformations, num_generations)
+            random.shuffle(selected_transforms)
+        
+        # 添加随机旋转和缩放变化，让角度更刁钻
+        for i in range(len(selected_transforms)):
+            if random.random() < 0.3:  # 30%概率添加额外变换
+                selected_transforms[i] = f"{selected_transforms[i]}_extra"
 
         generated_files = []
         metadata = []
@@ -453,7 +465,21 @@ class ImageMultiAngleGenerator:
                 return img, []
         
         try:
-            results = self.detector(img, verbose=False, conf=0.25)
+            # 改进的检测算法：使用动态置信度阈值
+            # 根据图片质量调整置信度阈值，让检测更准确
+            base_conf = 0.25
+            # 根据图片亮度调整置信度（暗图需要更低阈值）
+            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY) if len(img.shape) == 3 else img
+            mean_brightness = np.mean(gray)
+            if mean_brightness < 50:  # 暗图
+                conf_threshold = base_conf * 0.7
+            elif mean_brightness > 200:  # 亮图
+                conf_threshold = base_conf * 1.2
+            else:
+                conf_threshold = base_conf
+            
+            # 使用更严格的NMS和置信度阈值
+            results = self.detector(img, verbose=False, conf=conf_threshold, iou=0.45)
             detections = []
             annotated_img = img.copy()
             
@@ -546,7 +572,7 @@ class ImageMultiAngleGenerator:
         return sorted_stats
 
     def _apply_transformation(self, img: np.ndarray, transform_type: str, h: int, w: int) -> np.ndarray:
-        """应用指定的3D视角变换"""
+        """应用指定的3D视角变换（改进版：添加随机参数变化）"""
         cv2 = _get_cv2()
         if cv2 is None:
             # 如果 OpenCV 不可用，返回原图
@@ -554,77 +580,111 @@ class ImageMultiAngleGenerator:
         
         result = img.copy()
         
-        if transform_type == 'original':
+        # 处理带变体后缀的变换类型
+        base_transform = transform_type.split('_var')[0].split('_extra')[0]
+        has_extra = '_extra' in transform_type
+        
+        if base_transform == 'original':
+            if has_extra:
+                # 添加轻微的随机旋转和缩放
+                center = (w // 2, h // 2)
+                angle = random.uniform(-5, 5)
+                scale = random.uniform(0.98, 1.02)
+                M = cv2.getRotationMatrix2D(center, angle, scale)
+                result = cv2.warpAffine(result, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
             return result
         
         # ========== 真正的3D视角变换 ==========
         
-        elif transform_type == 'top_down_90':
+        elif base_transform == 'top_down_90':
+            # 添加随机变化，让角度更刁钻
+            if has_extra:
+                offset1 = random.uniform(0.05, 0.15)
+                offset2 = random.uniform(0.05, 0.15)
+            else:
+                offset1, offset2 = 0.1, 0.1
             pts1 = np.float32([[0, 0], [w, 0], [0, h], [w, h]])
-            pts2 = np.float32([[w*0.1, h*0.1], [w*0.9, h*0.1], [w*0.1, h*0.9], [w*0.9, h*0.9]])
+            pts2 = np.float32([
+                [w*offset1, h*offset1], 
+                [w*(1-offset1), h*offset1], 
+                [w*offset2, h*(1-offset2)], 
+                [w*(1-offset2), h*(1-offset2)]
+            ])
             M = cv2.getPerspectiveTransform(pts1, pts2)
             result = cv2.warpPerspective(result, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
             
-        elif transform_type == 'top_down_60':
+        elif base_transform == 'top_down_60':
+            offset = random.uniform(0.05, 0.15) if has_extra else 0.1
             pts1 = np.float32([[0, 0], [w, 0], [0, h], [w, h]])
-            pts2 = np.float32([[w*0.15, h*0.05], [w*0.85, h*0.05], [w*0.05, h*0.95], [w*0.95, h*0.95]])
+            pts2 = np.float32([[w*offset, h*0.05], [w*(1-offset), h*0.05], [w*0.05, h*0.95], [w*0.95, h*0.95]])
             M = cv2.getPerspectiveTransform(pts1, pts2)
             result = cv2.warpPerspective(result, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
             
-        elif transform_type == 'top_down_45':
+        elif base_transform == 'top_down_45':
+            offset = random.uniform(0.1, 0.2) if has_extra else 0.15
             pts1 = np.float32([[0, 0], [w, 0], [0, h], [w, h]])
-            pts2 = np.float32([[w*0.2, h*0.1], [w*0.8, h*0.1], [w*0.1, h*0.9], [w*0.9, h*0.9]])
+            pts2 = np.float32([[w*offset, h*0.1], [w*(1-offset), h*0.1], [w*0.1, h*0.9], [w*0.9, h*0.9]])
             M = cv2.getPerspectiveTransform(pts1, pts2)
             result = cv2.warpPerspective(result, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
         
-        elif transform_type == 'low_angle_30':
+        elif base_transform == 'low_angle_30':
+            offset = random.uniform(0.05, 0.15) if has_extra else 0.1
             pts1 = np.float32([[0, 0], [w, 0], [0, h], [w, h]])
-            pts2 = np.float32([[w*0.1, h*0.3], [w*0.9, h*0.3], [w*0.05, h*0.95], [w*0.95, h*0.95]])
+            pts2 = np.float32([[w*offset, h*0.3], [w*(1-offset), h*0.3], [w*0.05, h*0.95], [w*0.95, h*0.95]])
             M = cv2.getPerspectiveTransform(pts1, pts2)
             result = cv2.warpPerspective(result, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
             
-        elif transform_type == 'low_angle_45':
+        elif base_transform == 'low_angle_45':
+            offset = random.uniform(0.1, 0.2) if has_extra else 0.15
             pts1 = np.float32([[0, 0], [w, 0], [0, h], [w, h]])
-            pts2 = np.float32([[w*0.15, h*0.4], [w*0.85, h*0.4], [w*0.0, h*1.0], [w*1.0, h*1.0]])
+            pts2 = np.float32([[w*offset, h*0.4], [w*(1-offset), h*0.4], [w*0.0, h*1.0], [w*1.0, h*1.0]])
             M = cv2.getPerspectiveTransform(pts1, pts2)
             result = cv2.warpPerspective(result, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
         
-        elif transform_type == 'side_view_left':
+        elif base_transform == 'side_view_left':
+            offset = random.uniform(0.65, 0.75) if has_extra else 0.7
             pts1 = np.float32([[0, 0], [w, 0], [0, h], [w, h]])
-            pts2 = np.float32([[w*0.0, h*0.1], [w*0.7, h*0.1], [w*0.0, h*0.9], [w*0.7, h*0.9]])
+            pts2 = np.float32([[w*0.0, h*0.1], [w*offset, h*0.1], [w*0.0, h*0.9], [w*offset, h*0.9]])
             M = cv2.getPerspectiveTransform(pts1, pts2)
             result = cv2.warpPerspective(result, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
             
-        elif transform_type == 'side_view_right':
+        elif base_transform == 'side_view_right':
+            offset = random.uniform(0.25, 0.35) if has_extra else 0.3
             pts1 = np.float32([[0, 0], [w, 0], [0, h], [w, h]])
-            pts2 = np.float32([[w*0.3, h*0.1], [w*1.0, h*0.1], [w*0.3, h*0.9], [w*1.0, h*0.9]])
+            pts2 = np.float32([[w*offset, h*0.1], [w*1.0, h*0.1], [w*offset, h*0.9], [w*1.0, h*0.9]])
             M = cv2.getPerspectiveTransform(pts1, pts2)
             result = cv2.warpPerspective(result, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
         
-        elif transform_type == 'oblique_30':
+        elif base_transform == 'oblique_30':
+            angle = random.uniform(25, 35) if has_extra else 30
             center = (w // 2, h // 2)
-            M = cv2.getRotationMatrix2D(center, 30, 1.0)
+            M = cv2.getRotationMatrix2D(center, angle, 1.0)
             result = cv2.warpAffine(result, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
+            offset = random.uniform(0.05, 0.15) if has_extra else 0.1
             pts1 = np.float32([[0, 0], [w, 0], [0, h], [w, h]])
-            pts2 = np.float32([[w*0.1, h*0.1], [w*0.9, h*0.1], [w*0.0, h*0.9], [w*1.0, h*0.9]])
+            pts2 = np.float32([[w*offset, h*offset], [w*(1-offset), h*offset], [w*0.0, h*0.9], [w*1.0, h*0.9]])
             M2 = cv2.getPerspectiveTransform(pts1, pts2)
             result = cv2.warpPerspective(result, M2, (w, h), borderMode=cv2.BORDER_REPLICATE)
             
-        elif transform_type == 'oblique_45':
+        elif base_transform == 'oblique_45':
+            angle = random.uniform(40, 50) if has_extra else 45
             center = (w // 2, h // 2)
-            M = cv2.getRotationMatrix2D(center, 45, 1.0)
+            M = cv2.getRotationMatrix2D(center, angle, 1.0)
             result = cv2.warpAffine(result, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
+            offset = random.uniform(0.1, 0.2) if has_extra else 0.15
             pts1 = np.float32([[0, 0], [w, 0], [0, h], [w, h]])
-            pts2 = np.float32([[w*0.15, h*0.15], [w*0.85, h*0.15], [w*0.05, h*0.95], [w*0.95, h*0.95]])
+            pts2 = np.float32([[w*offset, h*offset], [w*(1-offset), h*offset], [w*0.05, h*0.95], [w*0.95, h*0.95]])
             M2 = cv2.getPerspectiveTransform(pts1, pts2)
             result = cv2.warpPerspective(result, M2, (w, h), borderMode=cv2.BORDER_REPLICATE)
             
-        elif transform_type == 'oblique_60':
+        elif base_transform == 'oblique_60':
+            angle = random.uniform(55, 65) if has_extra else 60
             center = (w // 2, h // 2)
-            M = cv2.getRotationMatrix2D(center, 60, 1.0)
+            M = cv2.getRotationMatrix2D(center, angle, 1.0)
             result = cv2.warpAffine(result, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
+            offset = random.uniform(0.15, 0.25) if has_extra else 0.2
             pts1 = np.float32([[0, 0], [w, 0], [0, h], [w, h]])
-            pts2 = np.float32([[w*0.2, h*0.2], [w*0.8, h*0.2], [w*0.1, h*0.9], [w*0.9, h*0.9]])
+            pts2 = np.float32([[w*offset, h*offset], [w*(1-offset), h*offset], [w*0.1, h*0.9], [w*0.9, h*0.9]])
             M2 = cv2.getPerspectiveTransform(pts1, pts2)
             result = cv2.warpPerspective(result, M2, (w, h), borderMode=cv2.BORDER_REPLICATE)
         
