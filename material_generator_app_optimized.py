@@ -172,6 +172,18 @@ def get_generator(draw_boxes=True):
         return ImageMultiAngleGenerator(draw_boxes=draw_boxes)
 
 @st.cache_resource
+def get_quality_analyzer():
+    """获取质量分析器，只初始化一次，自动使用GPU"""
+    if not AGENTS_AVAILABLE:
+        return None
+    try:
+        analyzer = ImageQualityAnalyzer()
+        return analyzer
+    except Exception as e:
+        print(f"质量分析器初始化失败: {e}")
+        return None
+
+@st.cache_resource
 def get_agent():
     """获取代理，只初始化一次，自动使用GPU"""
     agent = MaterialGeneratorAgent()
@@ -269,6 +281,10 @@ if 'confidence_stats' not in st.session_state:
     st.session_state.confidence_stats = {}
 if 'enhancement_results' not in st.session_state:
     st.session_state.enhancement_results = None
+if 'original_image_quality' not in st.session_state:
+    st.session_state.original_image_quality = None  # 存储原始图片的质量分析结果
+if 'last_uploaded_file' not in st.session_state:
+    st.session_state.last_uploaded_file = None
 
 with st.sidebar:
     st.header("⚙️ 系统配置")
@@ -334,6 +350,20 @@ if uploaded_file is not None:
     temp_path = temp_dir / uploaded_file.name
     with open(temp_path, "wb") as f:
         f.write(uploaded_file.getbuffer())
+
+    # 立即对原始图片进行质量分析
+    if st.session_state.original_image_quality is None or st.session_state.get('last_uploaded_file') != uploaded_file.name:
+        with st.spinner("正在分析原始图片质量..."):
+            try:
+                quality_analyzer = get_quality_analyzer()
+                if quality_analyzer is not None:
+                    st.session_state.original_image_quality = quality_analyzer.analyze_single_image(str(temp_path))
+                    st.session_state.last_uploaded_file = uploaded_file.name
+                else:
+                    st.warning("⚠️ 质量分析器不可用，无法分析图片质量")
+            except Exception as e:
+                st.warning(f"⚠️ 图片质量分析失败: {e}")
+                st.session_state.original_image_quality = None
 
     col1, col2 = st.columns([1,1])
     with col1:
@@ -469,12 +499,13 @@ if uploaded_file is not None:
                 )
                 st.plotly_chart(fig, use_container_width=True)
 
-    # 显示8维度分析结果
-    if st.session_state.analysis_results:
+    # 显示8维度分析结果 - 基于原始图片质量分析
+    if st.session_state.original_image_quality:
         st.markdown("---")
         st.subheader("📊 8维度雷达图分析")
-        avg_scores = st.session_state.analysis_results['analysis']['average_scores']
-        overall_quality = st.session_state.analysis_results['recommendations']['overall_quality']
+        # 使用原始图片的质量分析结果，而不是生成的图片的平均值
+        original_scores = st.session_state.original_image_quality
+        overall_quality = np.mean(list(original_scores.values()))
 
         # 判断是否需要增强训练
         needs_enhancement = overall_quality < 50.0  # VisDrone数据集标准降低
@@ -484,7 +515,8 @@ if uploaded_file is not None:
             "图片数据量","拍摄光照质量","目标尺寸","目标完整性",
             "数据均衡度","产品丰富度","目标密集度","场景复杂度"
         ]
-        values = [avg_scores.get(dim,0) for dim in dimensions]
+        # 使用原始图片的质量分析结果
+        values = [original_scores.get(dim, 0) for dim in dimensions]
         fig.add_trace(go.Scatterpolar(
             r=values + [values[0]],
             theta=dimensions + [dimensions[0]],
@@ -515,8 +547,8 @@ if uploaded_file is not None:
         with col1:
             st.markdown("#### 📈 维度得分详情")
             score_df = pd.DataFrame([
-                {"维度": dim, "得分": f"{score:.2f}%", "等级": "优秀 ⭐⭐⭐" if score>=90 else "良好 ⭐⭐" if score>=80 else "中等 ⭐" if score>=70 else "一般" if score>=60 else "较差"}
-                for dim, score in avg_scores.items()
+                {"维度": dim, "得分": f"{original_scores.get(dim, 0):.2f}%", "等级": "优秀 ⭐⭐⭐" if original_scores.get(dim, 0)>=90 else "良好 ⭐⭐" if original_scores.get(dim, 0)>=80 else "中等 ⭐" if original_scores.get(dim, 0)>=70 else "一般" if original_scores.get(dim, 0)>=60 else "较差"}
+                for dim in dimensions
             ])
             st.dataframe(score_df, use_container_width=True, hide_index=True)
 
