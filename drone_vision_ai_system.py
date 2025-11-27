@@ -251,16 +251,19 @@ def init_session_state():
     if 'uploaded_file' not in st.session_state:
         st.session_state.uploaded_file = None
 
-def get_generator():
+def get_generator(draw_boxes: bool = True):
     """获取生成器实例"""
     if st.session_state.generator is None and AGENTS_AVAILABLE:
         try:
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
                 with contextlib.redirect_stderr(io.StringIO()):
-                    st.session_state.generator = ImageMultiAngleGenerator()
+                    st.session_state.generator = ImageMultiAngleGenerator(draw_boxes=draw_boxes)
         except Exception as e:
             st.error(f"生成器初始化失败: {e}")
+    elif st.session_state.generator is not None:
+        # 更新检测框设置
+        st.session_state.generator.draw_boxes = draw_boxes
     return st.session_state.generator
 
 def get_analyzer():
@@ -464,7 +467,7 @@ def show_generation_page():
             st.error("系统模块未加载，请检查环境配置")
             return
         
-        generator = get_generator()
+        generator = get_generator(draw_boxes=show_detection)
         if generator is None:
             st.error("生成器初始化失败")
             return
