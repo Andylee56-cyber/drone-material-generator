@@ -393,24 +393,24 @@ class ImageMultiAngleGenerator:
                 # 强制应用变换（不使用copy，直接变换）
                 transformed_img = self._apply_transformation(img, transform_type, h, w, random_factor=random_factor)
                 
-                # 强制验证：如果变换没有生效，立即应用极端变换
+                # 验证变换是否生效，但使用更温和的变换（避免过度扭曲）
                 if transformed_img.shape == img.shape:
                     diff = np.abs(transformed_img.astype(np.float32) - img.astype(np.float32))
-                    if np.mean(diff) < 15.0:  # 提高阈值，确保变换生效
-                        # 应用极端变换组合
+                    if np.mean(diff) < 10.0:  # 降低阈值，允许更小的变化
+                        # 应用温和的变换组合（避免过度扭曲）
                         cv2 = _get_cv2()
                         if cv2 is not None:
-                            # 组合变换1：大角度旋转
+                            # 组合变换1：中等角度旋转（减小范围）
                             center = (w // 2, h // 2)
-                            angle = random.uniform(-75, 75)
-                            scale = random.uniform(0.6, 1.4)
+                            angle = random.uniform(-30, 30)  # 减小旋转角度
+                            scale = random.uniform(0.9, 1.1)  # 减小缩放范围
                             M1 = cv2.getRotationMatrix2D(center, angle, scale)
-                            transformed_img = cv2.warpAffine(transformed_img, M1, (w, h), borderMode=cv2.BORDER_REPLICATE)
+                            transformed_img = cv2.warpAffine(transformed_img, M1, (w, h), borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0))
                             
-                            # 组合变换2：极端透视
-                            offset1 = random.uniform(0.0, 0.3)
-                            offset2 = random.uniform(0.0, 0.3)
-                            tilt = random.uniform(-0.2, 0.2)
+                            # 组合变换2：温和透视（减小偏移）
+                            offset1 = random.uniform(0.05, 0.15)  # 减小偏移范围
+                            offset2 = random.uniform(0.05, 0.15)
+                            tilt = random.uniform(-0.1, 0.1)  # 减小倾斜
                             pts1 = np.float32([[0, 0], [w, 0], [0, h], [w, h]])
                             pts2 = np.float32([
                                 [w*(offset1 + tilt), h*offset1], 
@@ -419,12 +419,7 @@ class ImageMultiAngleGenerator:
                                 [w*(1-offset2 - tilt), h*(1-offset2)]
                             ])
                             M2 = cv2.getPerspectiveTransform(pts1, pts2)
-                            transformed_img = cv2.warpPerspective(transformed_img, M2, (w, h), borderMode=cv2.BORDER_REPLICATE)
-                            
-                            # 组合变换3：再次旋转确保不同
-                            angle2 = random.uniform(-30, 30)
-                            M3 = cv2.getRotationMatrix2D(center, angle2, 1.0)
-                            transformed_img = cv2.warpAffine(transformed_img, M3, (w, h), borderMode=cv2.BORDER_REPLICATE)
+                            transformed_img = cv2.warpPerspective(transformed_img, M2, (w, h), borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0))
                 
                 # 验证变换是否真的应用了（检查图片是否改变）
                 cv2 = _get_cv2()
@@ -456,26 +451,26 @@ class ImageMultiAngleGenerator:
                 # 进行目标检测并绘制检测框（每次使用不同的置信度阈值）
                 detections = []
                 if self.draw_boxes:
-                    # 为每次检测添加随机变化（更大的变化范围）
-                    # 使用更激进的随机化，确保每次检测结果不同
-                    base_conf = 0.15 + (idx % 8) * 0.05  # 0.15-0.5之间变化，8个不同值
-                    # 添加额外的随机偏移（更大的范围）
-                    conf_variation = random.uniform(-0.08, 0.08)
-                    final_conf = max(0.1, min(0.65, base_conf + conf_variation))
+                    # 为每次检测添加随机变化，但降低阈值以检测更多目标
+                    # 使用更低的置信度阈值，确保检测到更多目标
+                    base_conf = 0.1 + (idx % 10) * 0.03  # 0.1-0.37之间变化，10个不同值
+                    # 添加额外的随机偏移（更小的范围，避免过度变化）
+                    conf_variation = random.uniform(-0.03, 0.03)
+                    final_conf = max(0.08, min(0.4, base_conf + conf_variation))  # 降低最大阈值，检测更多目标
                     
-                    # 检测前再次确保图片已经变换（双重验证）
+                    # 检测前再次确保图片已经变换（双重验证，但使用温和变换）
                     if cv2 is not None and transformed_img.shape == img.shape:
                         diff_check = np.abs(transformed_img.astype(np.float32) - img.astype(np.float32))
                         if np.mean(diff_check) < 10.0:  # 如果差异还是太小
-                            # 强制应用一个极端变换
+                            # 应用温和的变换（避免过度扭曲）
                             center = (w // 2, h // 2)
-                            angle = random.uniform(-60, 60)
-                            scale = random.uniform(0.7, 1.3)
+                            angle = random.uniform(-25, 25)  # 减小角度
+                            scale = random.uniform(0.9, 1.1)  # 减小缩放
                             M = cv2.getRotationMatrix2D(center, angle, scale)
-                            transformed_img = cv2.warpAffine(transformed_img, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
+                            transformed_img = cv2.warpAffine(transformed_img, M, (w, h), borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0))
                             
-                            # 再添加透视变换
-                            offset = random.uniform(0.1, 0.3)
+                            # 再添加温和的透视变换
+                            offset = random.uniform(0.05, 0.15)  # 减小偏移
                             pts1 = np.float32([[0, 0], [w, 0], [0, h], [w, h]])
                             pts2 = np.float32([
                                 [w*offset, h*offset], 
@@ -484,7 +479,7 @@ class ImageMultiAngleGenerator:
                                 [w*0.9, h*0.9]
                             ])
                             M2 = cv2.getPerspectiveTransform(pts1, pts2)
-                            transformed_img = cv2.warpPerspective(transformed_img, M2, (w, h), borderMode=cv2.BORDER_REPLICATE)
+                            transformed_img = cv2.warpPerspective(transformed_img, M2, (w, h), borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0))
                     
                     transformed_img, detections = self._detect_and_draw_boxes(transformed_img, conf_threshold=final_conf)
                     all_detections.extend(detections)
@@ -735,7 +730,7 @@ class ImageMultiAngleGenerator:
             angle = rng.uniform(-8, 8)
             scale = rng.uniform(0.95, 1.05)
             M = cv2.getRotationMatrix2D(center, angle, scale)
-            result = cv2.warpAffine(result, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
+            result = cv2.warpAffine(result, M, (w, h), borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0))
             return result
         
         # ========== 真正的3D视角变换 ==========
@@ -756,7 +751,7 @@ class ImageMultiAngleGenerator:
                 [w*(1-offset2 - tilt_x), h*(1-offset2 - tilt_y)]
             ])
             M = cv2.getPerspectiveTransform(pts1, pts2)
-            result = cv2.warpPerspective(result, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
+            result = cv2.warpPerspective(result, M, (w, h), borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0))
             # 应用旋转
             center = (w // 2, h // 2)
             M_rot = cv2.getRotationMatrix2D(center, rotation, 1.0)
@@ -776,7 +771,7 @@ class ImageMultiAngleGenerator:
                 [w*(0.95 - tilt), h*bottom_y]
             ])
             M = cv2.getPerspectiveTransform(pts1, pts2)
-            result = cv2.warpPerspective(result, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
+            result = cv2.warpPerspective(result, M, (w, h), borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0))
             center = (w // 2, h // 2)
             M_rot = cv2.getRotationMatrix2D(center, rotation, 1.0)
             result = cv2.warpAffine(result, M_rot, (w, h), borderMode=cv2.BORDER_REPLICATE)
@@ -795,7 +790,7 @@ class ImageMultiAngleGenerator:
                 [w*(0.9 - tilt), h*bottom_y]
             ])
             M = cv2.getPerspectiveTransform(pts1, pts2)
-            result = cv2.warpPerspective(result, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
+            result = cv2.warpPerspective(result, M, (w, h), borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0))
             center = (w // 2, h // 2)
             M_rot = cv2.getRotationMatrix2D(center, rotation, 1.0)
             result = cv2.warpAffine(result, M_rot, (w, h), borderMode=cv2.BORDER_REPLICATE)
@@ -813,7 +808,7 @@ class ImageMultiAngleGenerator:
                 [w*(0.95 - tilt), h*0.95]
             ])
             M = cv2.getPerspectiveTransform(pts1, pts2)
-            result = cv2.warpPerspective(result, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
+            result = cv2.warpPerspective(result, M, (w, h), borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0))
             center = (w // 2, h // 2)
             M_rot = cv2.getRotationMatrix2D(center, rotation, 1.0)
             result = cv2.warpAffine(result, M_rot, (w, h), borderMode=cv2.BORDER_REPLICATE)
@@ -831,7 +826,7 @@ class ImageMultiAngleGenerator:
                 [w*(1.0 - tilt), h*1.0]
             ])
             M = cv2.getPerspectiveTransform(pts1, pts2)
-            result = cv2.warpPerspective(result, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
+            result = cv2.warpPerspective(result, M, (w, h), borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0))
             center = (w // 2, h // 2)
             M_rot = cv2.getRotationMatrix2D(center, rotation, 1.0)
             result = cv2.warpAffine(result, M_rot, (w, h), borderMode=cv2.BORDER_REPLICATE)
@@ -850,7 +845,7 @@ class ImageMultiAngleGenerator:
                 [w*(offset - tilt), h*bottom_y]
             ])
             M = cv2.getPerspectiveTransform(pts1, pts2)
-            result = cv2.warpPerspective(result, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
+            result = cv2.warpPerspective(result, M, (w, h), borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0))
             center = (w // 2, h // 2)
             M_rot = cv2.getRotationMatrix2D(center, rotation, 1.0)
             result = cv2.warpAffine(result, M_rot, (w, h), borderMode=cv2.BORDER_REPLICATE)
@@ -869,7 +864,7 @@ class ImageMultiAngleGenerator:
                 [w*(1.0 - tilt), h*bottom_y]
             ])
             M = cv2.getPerspectiveTransform(pts1, pts2)
-            result = cv2.warpPerspective(result, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
+            result = cv2.warpPerspective(result, M, (w, h), borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0))
             center = (w // 2, h // 2)
             M_rot = cv2.getRotationMatrix2D(center, rotation, 1.0)
             result = cv2.warpAffine(result, M_rot, (w, h), borderMode=cv2.BORDER_REPLICATE)
@@ -879,7 +874,7 @@ class ImageMultiAngleGenerator:
             scale = rng.uniform(0.9, 1.1)
             center = (w // 2, h // 2)
             M = cv2.getRotationMatrix2D(center, angle, scale)
-            result = cv2.warpAffine(result, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
+            result = cv2.warpAffine(result, M, (w, h), borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0))
             offset = rng.uniform(0.02, 0.2)
             tilt = rng.uniform(-0.12, 0.12)
             pts1 = np.float32([[0, 0], [w, 0], [0, h], [w, h]])
@@ -897,7 +892,7 @@ class ImageMultiAngleGenerator:
             scale = rng.uniform(0.85, 1.15)
             center = (w // 2, h // 2)
             M = cv2.getRotationMatrix2D(center, angle, scale)
-            result = cv2.warpAffine(result, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
+            result = cv2.warpAffine(result, M, (w, h), borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0))
             offset = rng.uniform(0.05, 0.25)
             tilt = rng.uniform(-0.15, 0.15)
             pts1 = np.float32([[0, 0], [w, 0], [0, h], [w, h]])
@@ -915,7 +910,7 @@ class ImageMultiAngleGenerator:
             scale = rng.uniform(0.8, 1.2)
             center = (w // 2, h // 2)
             M = cv2.getRotationMatrix2D(center, angle, scale)
-            result = cv2.warpAffine(result, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
+            result = cv2.warpAffine(result, M, (w, h), borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0))
             offset = rng.uniform(0.1, 0.3)
             tilt = rng.uniform(-0.18, 0.18)
             pts1 = np.float32([[0, 0], [w, 0], [0, h], [w, h]])
@@ -940,7 +935,7 @@ class ImageMultiAngleGenerator:
                 [w*(1-offset), h*(1-offset)]
             ])
             M = cv2.getPerspectiveTransform(pts1, pts2)
-            result = cv2.warpPerspective(result, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
+            result = cv2.warpPerspective(result, M, (w, h), borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0))
             center = (w/2, h/2)
             M_scale = cv2.getRotationMatrix2D(center, rotation, scale)
             result = cv2.warpAffine(result, M_scale, (w, h), borderMode=cv2.BORDER_REPLICATE)
@@ -958,7 +953,7 @@ class ImageMultiAngleGenerator:
                 [w*(1.0 - tilt), h*1.0]
             ])
             M = cv2.getPerspectiveTransform(pts1, pts2)
-            result = cv2.warpPerspective(result, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
+            result = cv2.warpPerspective(result, M, (w, h), borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0))
             center = (w // 2, h // 2)
             M_rot = cv2.getRotationMatrix2D(center, rotation, 1.0)
             result = cv2.warpAffine(result, M_rot, (w, h), borderMode=cv2.BORDER_REPLICATE)
@@ -977,7 +972,7 @@ class ImageMultiAngleGenerator:
                 [w*1.0, h*(bottom_y - 0.1)]
             ])
             M = cv2.getPerspectiveTransform(pts1, pts2)
-            result = cv2.warpPerspective(result, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
+            result = cv2.warpPerspective(result, M, (w, h), borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0))
             center = (w // 2, h // 2)
             M_rot = cv2.getRotationMatrix2D(center, rotation, 1.0)
             result = cv2.warpAffine(result, M_rot, (w, h), borderMode=cv2.BORDER_REPLICATE)
@@ -996,7 +991,7 @@ class ImageMultiAngleGenerator:
                 [w*right_x, h*1.0]
             ])
             M = cv2.getPerspectiveTransform(pts1, pts2)
-            result = cv2.warpPerspective(result, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
+            result = cv2.warpPerspective(result, M, (w, h), borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0))
             center = (w // 2, h // 2)
             M_rot = cv2.getRotationMatrix2D(center, rotation, 1.0)
             result = cv2.warpAffine(result, M_rot, (w, h), borderMode=cv2.BORDER_REPLICATE)
@@ -1006,7 +1001,7 @@ class ImageMultiAngleGenerator:
             rotation2 = rng.uniform(-10, 10)
             center = (w // 2, h // 2)
             M = cv2.getRotationMatrix2D(center, angle, 1.0)
-            result = cv2.warpAffine(result, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
+            result = cv2.warpAffine(result, M, (w, h), borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0))
             offset = rng.uniform(0.05, 0.15)
             tilt = rng.uniform(-0.1, 0.1)
             pts1 = np.float32([[0, 0], [w, 0], [0, h], [w, h]])
@@ -1026,7 +1021,7 @@ class ImageMultiAngleGenerator:
             rotation2 = rng.uniform(-10, 10)
             center = (w // 2, h // 2)
             M = cv2.getRotationMatrix2D(center, angle, 1.0)
-            result = cv2.warpAffine(result, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
+            result = cv2.warpAffine(result, M, (w, h), borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0))
             offset = rng.uniform(0.05, 0.15)
             tilt = rng.uniform(-0.1, 0.1)
             pts1 = np.float32([[0, 0], [w, 0], [0, h], [w, h]])
@@ -1054,7 +1049,7 @@ class ImageMultiAngleGenerator:
                 [w*(1.0 - tilt), h*bottom_y]
             ])
             M = cv2.getPerspectiveTransform(pts1, pts2)
-            result = cv2.warpPerspective(result, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
+            result = cv2.warpPerspective(result, M, (w, h), borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0))
             center = (w // 2, h // 2)
             M_rot = cv2.getRotationMatrix2D(center, rotation, 1.0)
             result = cv2.warpAffine(result, M_rot, (w, h), borderMode=cv2.BORDER_REPLICATE)
@@ -1071,7 +1066,7 @@ class ImageMultiAngleGenerator:
                 [w*(1-offset - tilt), h*1.0]
             ])
             M = cv2.getPerspectiveTransform(pts1, pts2)
-            result = cv2.warpPerspective(result, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
+            result = cv2.warpPerspective(result, M, (w, h), borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0))
             center = (w // 2, h // 2)
             M_rot = cv2.getRotationMatrix2D(center, rotation, 1.0)
             result = cv2.warpAffine(result, M_rot, (w, h), borderMode=cv2.BORDER_REPLICATE)
@@ -1081,14 +1076,14 @@ class ImageMultiAngleGenerator:
             rotation = rng.uniform(-30, 30)
             center = (w // 2, h // 2)
             M = cv2.getRotationMatrix2D(center, rotation, scale)
-            result = cv2.warpAffine(result, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
+            result = cv2.warpAffine(result, M, (w, h), borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0))
         
         elif base_transform == 'rotate_3d_45' or transform_type == 'rotate_3d_45':
             angle = rng.uniform(35, 55)
             scale = rng.uniform(0.9, 1.1)
             center = (w // 2, h // 2)
             M = cv2.getRotationMatrix2D(center, angle, scale)
-            result = cv2.warpAffine(result, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
+            result = cv2.warpAffine(result, M, (w, h), borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0))
             offset = rng.uniform(0.05, 0.15)
             tilt = rng.uniform(-0.12, 0.12)
             pts1 = np.float32([[0, 0], [w, 0], [0, h], [w, h]])
@@ -1106,7 +1101,7 @@ class ImageMultiAngleGenerator:
             scale = rng.uniform(0.85, 1.15)
             center = (w // 2, h // 2)
             M = cv2.getRotationMatrix2D(center, angle, scale)
-            result = cv2.warpAffine(result, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
+            result = cv2.warpAffine(result, M, (w, h), borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0))
         
         elif base_transform == 'perspective_strong' or transform_type == 'perspective_strong':
             top_offset = rng.uniform(0.15, 0.25)
@@ -1121,7 +1116,7 @@ class ImageMultiAngleGenerator:
                 [w*(1.0 - tilt), h*bottom_y]
             ])
             M = cv2.getPerspectiveTransform(pts1, pts2)
-            result = cv2.warpPerspective(result, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
+            result = cv2.warpPerspective(result, M, (w, h), borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0))
             center = (w // 2, h // 2)
             M_rot = cv2.getRotationMatrix2D(center, rotation, 1.0)
             result = cv2.warpAffine(result, M_rot, (w, h), borderMode=cv2.BORDER_REPLICATE)
@@ -1220,7 +1215,7 @@ class ImageMultiAngleGenerator:
                 scale = rng.uniform(0.5, 1.5)
                 center = (w // 2, h // 2)
                 M = cv2.getRotationMatrix2D(center, angle, scale)
-                result = cv2.warpAffine(result, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
+                result = cv2.warpAffine(result, M, (w, h), borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0))
                 offset = rng.uniform(0.0, 0.3)
                 tilt = rng.uniform(-0.3, 0.3)
                 pts1 = np.float32([[0, 0], [w, 0], [0, h], [w, h]])
@@ -1237,7 +1232,7 @@ class ImageMultiAngleGenerator:
                 angle = rng.uniform(-60, 60)
                 center = (w // 2, h // 2)
                 M = cv2.getRotationMatrix2D(center, angle, rng.uniform(0.7, 1.3))
-                result = cv2.warpAffine(result, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
+                result = cv2.warpAffine(result, M, (w, h), borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0))
                 offset = rng.uniform(0.0, 0.2)
                 tilt = rng.uniform(-0.25, 0.25)
                 pts1 = np.float32([[0, 0], [w, 0], [0, h], [w, h]])
@@ -1255,14 +1250,14 @@ class ImageMultiAngleGenerator:
                 rotation = rng.uniform(-45, 45)
                 center = (w // 2, h // 2)
                 M = cv2.getRotationMatrix2D(center, rotation, scale)
-                result = cv2.warpAffine(result, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
+                result = cv2.warpAffine(result, M, (w, h), borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0))
                 
             elif 'rotate' in base_transform:
                 angle = rng.uniform(0, 180)
                 scale = rng.uniform(0.6, 1.4)
                 center = (w // 2, h // 2)
                 M = cv2.getRotationMatrix2D(center, angle, scale)
-                result = cv2.warpAffine(result, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
+                result = cv2.warpAffine(result, M, (w, h), borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0))
                 
             elif 'perspective' in base_transform:
                 offset = rng.uniform(0.0, 0.3)
@@ -1281,25 +1276,14 @@ class ImageMultiAngleGenerator:
                 M_rot = cv2.getRotationMatrix2D(center, rotation, rng.uniform(0.7, 1.3))
                 result = cv2.warpAffine(result, M_rot, (w, h), borderMode=cv2.BORDER_REPLICATE)
         
-        # 最后强制添加一个随机变换，确保每次都不一样（即使已经变换过）
-        final_rotation = rng.uniform(-15, 15)
-        final_scale = rng.uniform(0.95, 1.05)
-        final_tilt = rng.uniform(-0.05, 0.05)
-        center = (w // 2, h // 2)
-        M_final = cv2.getRotationMatrix2D(center, final_rotation, final_scale)
-        result = cv2.warpAffine(result, M_final, (w, h), borderMode=cv2.BORDER_REPLICATE)
-        
-        # 最后添加小幅透视变换
-        if final_tilt != 0:
-            pts1 = np.float32([[0, 0], [w, 0], [0, h], [w, h]])
-            pts2 = np.float32([
-                [w*(0.0 + final_tilt), h*0.0], 
-                [w*(1.0 + final_tilt), h*0.0], 
-                [w*(0.0 - final_tilt), h*1.0], 
-                [w*(1.0 - final_tilt), h*1.0]
-            ])
-            M_tilt = cv2.getPerspectiveTransform(pts1, pts2)
-            result = cv2.warpPerspective(result, M_tilt, (w, h), borderMode=cv2.BORDER_REPLICATE)
+        # 最后添加小幅变换，但不要过度扭曲（使用更温和的参数）
+        # 只对非original变换添加，且使用更小的参数范围
+        if base_transform != 'original':
+            final_rotation = rng.uniform(-5, 5)  # 减小旋转范围
+            final_scale = rng.uniform(0.98, 1.02)  # 减小缩放范围
+            center = (w // 2, h // 2)
+            M_final = cv2.getRotationMatrix2D(center, final_rotation, final_scale)
+            result = cv2.warpAffine(result, M_final, (w, h), borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0))
         
         return result
 

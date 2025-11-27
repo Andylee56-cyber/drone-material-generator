@@ -515,31 +515,23 @@ def show_generation_page():
             total_images = len(st.session_state.generated_images)
             st.info(f"✅ 共生成 {total_images} 张素材图片")
             
-            # 分页显示（每页9张）
-            images_per_page = 9
-            total_pages = (total_images + images_per_page - 1) // images_per_page
-            
-            if total_pages > 1:
-                page = st.selectbox("选择页码", range(1, total_pages + 1), format_func=lambda x: f"第 {x} 页 (共 {total_pages} 页)")
-                start_idx = (page - 1) * images_per_page
-                end_idx = min(start_idx + images_per_page, total_images)
-            else:
-                start_idx = 0
-                end_idx = total_images
-            
-            # 显示当前页的图片
-            cols = st.columns(3)
-            for idx in range(start_idx, end_idx):
-                img_path = st.session_state.generated_images[idx]
-                with cols[idx % 3]:
-                    try:
-                        img = Image.open(img_path)
-                        st.image(img, use_container_width=True)
-                        # 从文件名提取变换类型
-                        transform_name = Path(img_path).stem.split('_')[-1] if '_' in Path(img_path).stem else "original"
-                        st.caption(f"素材 {idx + 1}/{total_images} - {transform_name}")
-                    except Exception as e:
-                        st.error(f"加载失败: {e}")
+            # 显示所有图片（不分页，使用滚动）
+            # 每行3张，自动换行
+            for row_start in range(0, total_images, 3):
+                cols = st.columns(3)
+                for col_idx in range(3):
+                    idx = row_start + col_idx
+                    if idx < total_images:
+                        img_path = st.session_state.generated_images[idx]
+                        with cols[col_idx]:
+                            try:
+                                img = Image.open(img_path)
+                                st.image(img, use_container_width=True)
+                                # 从文件名提取变换类型
+                                transform_name = Path(img_path).stem.split('_')[-1] if '_' in Path(img_path).stem else "original"
+                                st.caption(f"素材 {idx + 1}/{total_images} - {transform_name}")
+                            except Exception as e:
+                                st.error(f"加载失败: {e}")
             
             # 显示置信度统计饼图（显示所有置信度）
             confidence_stats = st.session_state.confidence_stats
@@ -709,7 +701,7 @@ def show_generation_page():
             
             # 显示详细统计表格
             if st.session_state.confidence_stats:
-                with st.expander("📋 详细检测统计"):
+                with st.expander("📋 详细检测统计", expanded=False):
                     stats_data = []
                     for class_name, stats in st.session_state.confidence_stats.items():
                         stats_data.append({
