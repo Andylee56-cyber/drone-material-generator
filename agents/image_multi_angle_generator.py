@@ -350,14 +350,8 @@ class ImageMultiAngleGenerator:
                 'perspective_strong', 'fisheye_effect', 'original'
             ]
 
-        # 彻底重写：强制每个变换都不同，使用极端参数
-        # 生成更多极端变换类型
-        extreme_transforms = [
-            'extreme_top_down', 'extreme_low_angle', 'extreme_side_left', 'extreme_side_right',
-            'extreme_oblique_1', 'extreme_oblique_2', 'extreme_diagonal_1', 'extreme_diagonal_2',
-            'extreme_tilt_1', 'extreme_tilt_2', 'extreme_zoom_in', 'extreme_zoom_out',
-            'extreme_rotate_1', 'extreme_rotate_2', 'extreme_perspective_1', 'extreme_perspective_2'
-        ]
+        # 极端变换在实际素材中过于失真，这里默认关闭
+        extreme_transforms = []
         
         # 合并所有变换类型
         all_transforms = transformations + extreme_transforms
@@ -393,60 +387,27 @@ class ImageMultiAngleGenerator:
                 # 强制应用变换（不使用copy，直接变换）
                 transformed_img = self._apply_transformation(img, transform_type, h, w, random_factor=random_factor)
                 
-                # 验证变换是否生效，但使用更温和的变换（避免过度扭曲）
-                if transformed_img.shape == img.shape:
-                    diff = np.abs(transformed_img.astype(np.float32) - img.astype(np.float32))
-                    if np.mean(diff) < 10.0:  # 降低阈值，允许更小的变化
-                        # 应用温和的变换组合（避免过度扭曲）
-                        cv2 = _get_cv2()
-                        if cv2 is not None:
-                            # 组合变换1：中等角度旋转（减小范围）
-                            center = (w // 2, h // 2)
-                            angle = random.uniform(-30, 30)  # 减小旋转角度
-                            scale = random.uniform(0.9, 1.1)  # 减小缩放范围
-                            M1 = cv2.getRotationMatrix2D(center, angle, scale)
-                            transformed_img = cv2.warpAffine(transformed_img, M1, (w, h), borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0))
-                            
-                            # 组合变换2：温和透视（减小偏移）
-                            offset1 = random.uniform(0.05, 0.15)  # 减小偏移范围
-                            offset2 = random.uniform(0.05, 0.15)
-                            tilt = random.uniform(-0.1, 0.1)  # 减小倾斜
-                            pts1 = np.float32([[0, 0], [w, 0], [0, h], [w, h]])
-                            pts2 = np.float32([
-                                [w*(offset1 + tilt), h*offset1], 
-                                [w*(1-offset1 + tilt), h*offset1], 
-                                [w*(offset2 - tilt), h*(1-offset2)], 
-                                [w*(1-offset2 - tilt), h*(1-offset2)]
-                            ])
-                            M2 = cv2.getPerspectiveTransform(pts1, pts2)
-                            transformed_img = cv2.warpPerspective(transformed_img, M2, (w, h), borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0))
-                
-                # 验证变换是否真的应用了（检查图片是否改变）
                 cv2 = _get_cv2()
-                if cv2 is not None:
-                    # 计算图片差异
-                    if transformed_img.shape == img.shape:
-                        diff = np.abs(transformed_img.astype(np.float32) - img.astype(np.float32))
-                        mean_diff = np.mean(diff)
-                        # 如果差异太小，强制应用一个随机变换
-                        if mean_diff < 5.0:  # 阈值：平均像素差异小于5
-                            center = (w // 2, h // 2)
-                            angle = random.uniform(-45, 45)
-                            scale = random.uniform(0.85, 1.15)
-                            M = cv2.getRotationMatrix2D(center, angle, scale)
-                            transformed_img = cv2.warpAffine(transformed_img, M, (w, h), borderMode=cv2.BORDER_REPLICATE)
-                            
-                            # 再添加一个透视变换确保不同
-                            offset = random.uniform(0.1, 0.3)
-                            pts1 = np.float32([[0, 0], [w, 0], [0, h], [w, h]])
-                            pts2 = np.float32([
-                                [w*offset, h*offset], 
-                                [w*(1-offset), h*offset], 
-                                [w*0.1, h*0.9], 
-                                [w*0.9, h*0.9]
-                            ])
-                            M2 = cv2.getPerspectiveTransform(pts1, pts2)
-                            transformed_img = cv2.warpPerspective(transformed_img, M2, (w, h), borderMode=cv2.BORDER_REPLICATE)
+                if cv2 is not None and transformed_img.shape == img.shape:
+                    diff = np.abs(transformed_img.astype(np.float32) - img.astype(np.float32))
+                    mean_diff = np.mean(diff)
+                    if mean_diff < 6.0:
+                        center = (w // 2, h // 2)
+                        angle = random.uniform(-15, 15)
+                        scale = random.uniform(0.95, 1.05)
+                        M = cv2.getRotationMatrix2D(center, angle, scale)
+                        transformed_img = cv2.warpAffine(
+                            transformed_img, M, (w, h),
+                            borderMode=cv2.BORDER_REFLECT
+                        )
+                        tx = random.uniform(-w * 0.05, w * 0.05)
+                        ty = random.uniform(-h * 0.05, h * 0.05)
+                        M[0, 2] += tx
+                        M[1, 2] += ty
+                        transformed_img = cv2.warpAffine(
+                            transformed_img, M, (w, h),
+                            borderMode=cv2.BORDER_REFLECT
+                        )
                 
                 # 进行目标检测并绘制检测框（每次使用不同的置信度阈值）
                 detections = []

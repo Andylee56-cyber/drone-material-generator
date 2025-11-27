@@ -269,6 +269,8 @@ def init_session_state():
         st.session_state.uploaded_file = None
     if 'enhancement_mode' not in st.session_state:
         st.session_state.enhancement_mode = False
+    if 'enhancement_result' not in st.session_state:
+        st.session_state.enhancement_result = None
 
 def get_generator(draw_boxes: bool = True):
     """获取生成器实例"""
@@ -550,6 +552,7 @@ def show_generation_page():
             unique_images.sort()
             st.session_state.generated_images = unique_images
             st.session_state.confidence_stats = result.get('confidence_statistics', {})
+            st.session_state.enhancement_result = None
             
             # 显示生成的图片 - 显示所有图片，使用分页
             st.markdown("### 🖼️ 生成的素材")
@@ -650,6 +653,24 @@ def show_generation_page():
                             height=400
                         )
                         st.plotly_chart(fig, use_container_width=True)
+
+                        class_rows = []
+                        for class_name, stats in confidence_stats.items():
+                            if class_name in ['_all_confidences', '_total_detections']:
+                                continue
+                            if not isinstance(stats, dict):
+                                continue
+                            class_rows.append({
+                                "类别": class_name,
+                                "检测数量": stats.get('count', 0),
+                                "平均置信度(%)": f"{stats.get('avg_confidence', 0)*100:.1f}",
+                                "最高(%)": f"{stats.get('max_confidence', 0)*100:.1f}",
+                                "最低(%)": f"{stats.get('min_confidence', 0)*100:.1f}"
+                            })
+
+                        if class_rows:
+                            st.markdown("#### 📋 类别置信度统计")
+                            st.dataframe(pd.DataFrame(class_rows), use_container_width=True)
                     else:
                         st.warning("⚠️ 暂无检测数据，可能图片中没有检测到目标")
                         # 显示调试信息
@@ -657,7 +678,7 @@ def show_generation_page():
                             st.json(confidence_stats)
                 
                 with col2:
-                    st.markdown('<div class="section-label">📈 统计信息</div>', unsafe_allow_html=True)
+                    st.subheader("📈 统计信息")
                     
                     # 计算加权平均置信度（权重由每个维度的占比随机生成）
                     all_confidences = st.session_state.confidence_stats.get('_all_confidences', [])
@@ -692,7 +713,7 @@ def show_generation_page():
                         st.caption("权重由8维度占比随机生成")
                         
                         # 显示权重分布
-                        st.markdown('<div class="section-label">📊 权重分布</div>', unsafe_allow_html=True)
+                        st.subheader("📊 权重分布")
                         with st.expander("查看权重", expanded=False):
                             dimension_names = [
                                 "图片数据量", "拍摄光照质量", "目标尺寸", "目标完整性",
@@ -715,17 +736,24 @@ def show_generation_page():
                         if not ENHANCEMENT_AVAILABLE:
                             st.warning("⚠️ 当前环境未提供增强训练模块")
                             return
+                        enhance_targets = st.session_state.generated_images[: min(8, len(st.session_state.generated_images))]
+                        if not enhance_targets:
+                            st.info("暂无素材可用于增强训练")
+                            return
                         try:
                             from agents.material_enhancement_trainer import MaterialEnhancementTrainer
                             trainer = MaterialEnhancementTrainer()
-                            enhance_targets = st.session_state.generated_images[: min(8, len(st.session_state.generated_images))]
-                            if not enhance_targets:
-                                st.info("暂无素材可用于增强训练")
-                                return
-                            enhanced_images = []
-                            for img_path in enhance_targets:
-                                enhanced_images.append(trainer.enhance_image(img_path))
-                            st.success(f"✅ 成功执行增强训练，输出 {len(enhanced_images)} 张增强素材")
+                            output_dir = Path("enhanced_materials") / datetime.now().strftime("%Y%m%d_%H%M%S")
+                            output_dir.mkdir(parents=True, exist_ok=True)
+                            with st.spinner("⚙️ 正在执行增强训练..."):
+                                batch_result = trainer.enhance_batch_to_excellent(
+                                    enhance_targets,
+                                    str(output_dir),
+                                    target_improvement=4.0,
+                                    max_iterations=6
+                                )
+                            st.session_state.enhancement_result = batch_result
+                            st.success(f"✅ 增强训练完成，平均提升 {batch_result.get('average_improvement', 0):.2f} 分")
                         except Exception as err:
                             st.error(f"增强训练失败: {err}")
 
@@ -740,6 +768,31 @@ def show_generation_page():
                                     run_enhancement()
                         else:
                             st.success("✅ 素材质量优秀")
+
+                    enhancement_summary = st.session_state.get('enhancement_result')
+                    if enhancement_summary:
+                        st.markdown("### 🧠 增强训练结果")
+                        cols = st.columns(3)
+                        cols[0].metric("平均提升幅度", f"{enhancement_summary.get('average_improvement', 0):.2f} 分")
+                        cols[1].metric("成功率", f"{enhancement_summary.get('success_rate', 0):.1f}%")
+                        cols[2].metric("达标率", f"{enhancement_summary.get('achievement_rate', 0):.1f}%")
+                        st.caption(f"增强图片 {enhancement_summary.get('successful', 0)} / {enhancement_summary.get('total_images', 0)} 张")
+                        
+                        detail_results = enhancement_summary.get('results', [])
+                        if detail_results:
+                            detail_df = []
+                            for item in detail_results:
+                                if not item.get('success'):
+                                    continue
+                                detail_df.append({
+                                    "原图": Path(item.get('original_path', '')).name,
+                                    "提升分数": f"{item.get('improvement', 0):.2f}",
+                                    "最终得分": f"{item.get('final_score', 0):.2f}",
+                                    "迭代次数": item.get('iterations', 0),
+                                    "质量等级": item.get('quality_level', '')
+                                })
+                            if detail_df:
+                                st.dataframe(pd.DataFrame(detail_df), use_container_width=True)
             
             # 显示详细统计表格
             if st.session_state.confidence_stats:
