@@ -271,6 +271,10 @@ def init_session_state():
         st.session_state.enhancement_mode = False
     if 'enhancement_result' not in st.session_state:
         st.session_state.enhancement_result = None
+    if 'current_page' not in st.session_state:
+        st.session_state.current_page = "📸 素材生成"
+    if 'should_run_enhancement' not in st.session_state:
+        st.session_state.should_run_enhancement = False
 
 def get_generator(draw_boxes: bool = True):
     """获取生成器实例"""
@@ -418,16 +422,34 @@ def main():
         if 'current_page' not in st.session_state:
             st.session_state.current_page = "📸 素材生成"
         
+        # 定义页面列表
+        page_options = ["📸 素材生成", "📊 质量分析", "🎯 智能筛选", "📈 数据报告"]
+        
+        # 确保 current_page 在有效范围内
+        if st.session_state.current_page not in page_options:
+            st.session_state.current_page = "📸 素材生成"
+        
+        # 获取当前页面索引
+        current_index = page_options.index(st.session_state.current_page)
+        
+        # 使用 on_change 回调确保页面状态同步
+        def update_page():
+            # 这个回调会在 radio 值改变时被调用
+            pass
+        
         page = st.radio(
             "选择功能模块",
-            ["📸 素材生成", "📊 质量分析", "🎯 智能筛选", "📈 数据报告"],
-            index=["📸 素材生成", "📊 质量分析", "🎯 智能筛选", "📈 数据报告"].index(st.session_state.current_page),
+            page_options,
+            index=current_index,
             label_visibility="collapsed",
-            key="page_selector"
+            key="page_selector",
+            on_change=update_page
         )
         
-        # 更新 session_state 中的页面选择
-        st.session_state.current_page = page
+        # 只有当用户主动切换页面时（不是按钮点击触发的重新运行），才更新页面状态
+        # 如果 should_run_enhancement 标志存在，说明是按钮点击触发的，不更新页面状态
+        if not st.session_state.get('should_run_enhancement', False):
+            st.session_state.current_page = page
         
         st.markdown("---")
         
@@ -446,15 +468,21 @@ def main():
         4. **数据报告**: 查看详细分析报告
         """)
     
-    # 主内容区
-    if page == "📸 素材生成":
+    # 主内容区 - 使用 session_state 中的页面状态，确保按钮点击后不会跳转
+    current_page = st.session_state.current_page
+    
+    if current_page == "📸 素材生成":
         show_generation_page()
-    elif page == "📊 质量分析":
+    elif current_page == "📊 质量分析":
         show_analysis_page()
-    elif page == "🎯 智能筛选":
+    elif current_page == "🎯 智能筛选":
         show_filter_page()
-    elif page == "📈 数据报告":
+    elif current_page == "📈 数据报告":
         show_report_page()
+    else:
+        # 默认显示素材生成页面
+        st.session_state.current_page = "📸 素材生成"
+        show_generation_page()
 
 def show_generation_page():
     """素材生成页面"""
@@ -747,6 +775,9 @@ def show_generation_page():
                     
                     def run_enhancement():
                         """执行增强训练"""
+                        # 在函数开始时立即保存当前页面状态，防止页面跳转
+                        st.session_state.current_page = "📸 素材生成"
+                        
                         if not ENHANCEMENT_AVAILABLE:
                             st.warning("⚠️ 当前环境未提供增强训练模块")
                             return
@@ -787,10 +818,13 @@ def show_generation_page():
                             
                             st.session_state.enhancement_result = batch_result
                             st.session_state.enhancement_in_progress = False
+                            # 确保页面状态保持
+                            st.session_state.current_page = "📸 素材生成"
                             st.success(f"✅ 增强训练完成！平均提升 {batch_result.get('average_improvement', 0):.2f} 分")
-                            # 不调用 st.rerun()，让结果在当前页面显示
                         except Exception as err:
                             st.session_state.enhancement_in_progress = False
+                            # 确保页面状态保持
+                            st.session_state.current_page = "📸 素材生成"
                             st.error(f"❌ 增强训练失败: {str(err)}")
                             import traceback
                             with st.expander("🔍 错误详情"):
@@ -799,14 +833,23 @@ def show_generation_page():
                     if quality_score > 0:
                         if quality_score < 60:
                             st.warning("⚠️ 素材质量较低，建议开启增强训练")
+                            # 使用 session_state 标志来控制增强训练，避免页面跳转
                             if st.button("🚀 开启增强训练", type="primary", use_container_width=True, key="enhance_btn_low"):
-                                run_enhancement()
+                                # 设置标志，在页面渲染后执行
+                                st.session_state.should_run_enhancement = True
+                                st.session_state.current_page = "📸 素材生成"  # 确保页面状态
                         elif quality_score < 80:
                             st.info("⚡ 素材质量良好，可以进一步提升")
                             if st.button("🚀 开启增强训练", type="secondary", use_container_width=True, key="enhance_btn_good"):
-                                run_enhancement()
+                                st.session_state.should_run_enhancement = True
+                                st.session_state.current_page = "📸 素材生成"  # 确保页面状态
                         else:
                             st.success("✅ 素材质量优秀")
+                        
+                        # 检查是否需要执行增强训练（在按钮点击后的下一次运行中）
+                        if st.session_state.get('should_run_enhancement', False):
+                            st.session_state.should_run_enhancement = False  # 重置标志
+                            run_enhancement()
                         
                         # 显示增强训练进行中的状态
                         if st.session_state.get('enhancement_in_progress', False):
