@@ -414,11 +414,20 @@ def main():
     with st.sidebar:
         st.markdown("### 🎛️ 控制面板")
         
+        # 使用 session_state 保持页面选择状态
+        if 'current_page' not in st.session_state:
+            st.session_state.current_page = "📸 素材生成"
+        
         page = st.radio(
             "选择功能模块",
             ["📸 素材生成", "📊 质量分析", "🎯 智能筛选", "📈 数据报告"],
-            label_visibility="collapsed"
+            index=["📸 素材生成", "📊 质量分析", "🎯 智能筛选", "📈 数据报告"].index(st.session_state.current_page),
+            label_visibility="collapsed",
+            key="page_selector"
         )
+        
+        # 更新 session_state 中的页面选择
+        st.session_state.current_page = page
         
         st.markdown("---")
         
@@ -732,42 +741,76 @@ def show_generation_page():
                         quality_score = 0
                     
                     # 质量评估
+                    # 初始化增强训练状态
+                    if 'enhancement_in_progress' not in st.session_state:
+                        st.session_state.enhancement_in_progress = False
+                    
                     def run_enhancement():
+                        """执行增强训练"""
                         if not ENHANCEMENT_AVAILABLE:
                             st.warning("⚠️ 当前环境未提供增强训练模块")
                             return
+                        
                         enhance_targets = st.session_state.generated_images[: min(8, len(st.session_state.generated_images))]
                         if not enhance_targets:
                             st.info("暂无素材可用于增强训练")
                             return
+                        
+                        # 确保路径是字符串格式
+                        image_paths = []
+                        for img_path in enhance_targets:
+                            if isinstance(img_path, (str, Path)):
+                                image_paths.append(str(img_path))
+                            elif hasattr(img_path, 'path'):
+                                image_paths.append(str(img_path.path))
+                            else:
+                                continue
+                        
+                        if not image_paths:
+                            st.error("⚠️ 无法获取有效的图片路径")
+                            return
+                        
                         try:
+                            st.session_state.enhancement_in_progress = True
                             from agents.material_enhancement_trainer import MaterialEnhancementTrainer
                             trainer = MaterialEnhancementTrainer()
                             output_dir = Path("enhanced_materials") / datetime.now().strftime("%Y%m%d_%H%M%S")
                             output_dir.mkdir(parents=True, exist_ok=True)
-                            with st.spinner("⚙️ 正在执行增强训练..."):
+                            
+                            with st.spinner("⚙️ 正在执行增强训练，请稍候..."):
                                 batch_result = trainer.enhance_batch_to_excellent(
-                                    enhance_targets,
+                                    image_paths,
                                     str(output_dir),
                                     target_improvement=4.0,
                                     max_iterations=6
                                 )
+                            
                             st.session_state.enhancement_result = batch_result
-                            st.success(f"✅ 增强训练完成，平均提升 {batch_result.get('average_improvement', 0):.2f} 分")
+                            st.session_state.enhancement_in_progress = False
+                            st.success(f"✅ 增强训练完成！平均提升 {batch_result.get('average_improvement', 0):.2f} 分")
+                            # 不调用 st.rerun()，让结果在当前页面显示
                         except Exception as err:
-                            st.error(f"增强训练失败: {err}")
+                            st.session_state.enhancement_in_progress = False
+                            st.error(f"❌ 增强训练失败: {str(err)}")
+                            import traceback
+                            with st.expander("🔍 错误详情"):
+                                st.code(traceback.format_exc())
 
                     if quality_score > 0:
                         if quality_score < 60:
                             st.warning("⚠️ 素材质量较低，建议开启增强训练")
-                            if st.button("🚀 开启增强训练", type="primary", use_container_width=True):
-                                    run_enhancement()
+                            if st.button("🚀 开启增强训练", type="primary", use_container_width=True, key="enhance_btn_low"):
+                                run_enhancement()
                         elif quality_score < 80:
                             st.info("⚡ 素材质量良好，可以进一步提升")
-                            if st.button("🚀 开启增强训练", type="secondary", use_container_width=True):
-                                    run_enhancement()
+                            if st.button("🚀 开启增强训练", type="secondary", use_container_width=True, key="enhance_btn_good"):
+                                run_enhancement()
                         else:
                             st.success("✅ 素材质量优秀")
+                        
+                        # 显示增强训练进行中的状态
+                        if st.session_state.get('enhancement_in_progress', False):
+                            st.info("🔄 增强训练正在进行中，请稍候...")
 
                     enhancement_summary = st.session_state.get('enhancement_result')
                     if enhancement_summary:

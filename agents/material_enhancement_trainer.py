@@ -62,6 +62,10 @@ class MaterialEnhancementTrainer:
         if not input_path.exists():
             raise FileNotFoundError(f"输入图片不存在: {image_path}")
 
+        cv2 = _get_cv2()
+        if cv2 is None:
+            raise RuntimeError("OpenCV 不可用，无法执行增强训练")
+        
         img = cv2.imread(str(input_path))
         if img is None:
             pil_img = Image.open(input_path)
@@ -113,7 +117,10 @@ class MaterialEnhancementTrainer:
             # 如果达到目标提升幅度，提前结束
             if improvement >= target_improvement:
                 final_path = output_path / f"enhanced_final_{input_path.stem}.jpg"
-                cv2.imwrite(str(final_path), current_img, [cv2.IMWRITE_JPEG_QUALITY, 95])
+                cv2_local = _get_cv2()
+                if cv2_local is None:
+                    raise RuntimeError("OpenCV 不可用")
+                cv2_local.imwrite(str(final_path), current_img, [cv2_local.IMWRITE_JPEG_QUALITY, 95])
                 return {
                     'success': True,
                     'target_achieved': True,
@@ -131,7 +138,10 @@ class MaterialEnhancementTrainer:
 
         # 达到最大迭代次数
         final_path = output_path / f"enhanced_final_{input_path.stem}.jpg"
-        cv2.imwrite(str(final_path), current_img, [cv2.IMWRITE_JPEG_QUALITY, 95])
+        cv2_local = _get_cv2()
+        if cv2_local is None:
+            raise RuntimeError("OpenCV 不可用")
+        cv2_local.imwrite(str(final_path), current_img, [cv2_local.IMWRITE_JPEG_QUALITY, 95])
         final_improvement = iteration_history[-1]['improvement']
         
         if final_improvement >= self.excellent_threshold:
@@ -216,6 +226,9 @@ class MaterialEnhancementTrainer:
         return img[:, :, ::-1]
 
     def _write_temp_image(self, img: np.ndarray, filename: str) -> Path:
+        cv2_local = _get_cv2()
+        if cv2_local is None:
+            raise RuntimeError("OpenCV 不可用")
         temp_path = self.temp_dir / filename
         processed = img
         if self.fast_mode and self.analysis_max_side:
@@ -224,9 +237,9 @@ class MaterialEnhancementTrainer:
             if max_side > self.analysis_max_side:
                 scale = self.analysis_max_side / max_side
                 new_size = (int(w * scale), int(h * scale))
-                processed = cv2.resize(img, new_size, interpolation=cv2.INTER_AREA)
+                processed = cv2_local.resize(img, new_size, interpolation=cv2_local.INTER_AREA)
         quality = 85 if self.fast_mode else 95
-        cv2.imwrite(str(temp_path), processed, [cv2.IMWRITE_JPEG_QUALITY, quality])
+        cv2_local.imwrite(str(temp_path), processed, [cv2_local.IMWRITE_JPEG_QUALITY, quality])
         return temp_path
 
     def _select_enhancement_strategy(self, scores: Dict) -> List[str]:
