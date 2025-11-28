@@ -775,8 +775,8 @@ def show_generation_page():
                     
                     def run_enhancement():
                         """执行增强训练"""
-                        # 在函数开始时立即保存当前页面状态，防止页面跳转
-                        st.session_state.current_page = "📸 素材生成"
+                        # 保存当前页面状态，防止页面跳转
+                        current_page_before = st.session_state.current_page
                         
                         if not ENHANCEMENT_AVAILABLE:
                             st.warning("⚠️ 当前环境未提供增强训练模块")
@@ -818,13 +818,13 @@ def show_generation_page():
                             
                             st.session_state.enhancement_result = batch_result
                             st.session_state.enhancement_in_progress = False
-                            # 确保页面状态保持
-                            st.session_state.current_page = "📸 素材生成"
+                            # 恢复页面状态，保持在当前页面
+                            st.session_state.current_page = current_page_before
                             st.success(f"✅ 增强训练完成！平均提升 {batch_result.get('average_improvement', 0):.2f} 分")
                         except Exception as err:
                             st.session_state.enhancement_in_progress = False
-                            # 确保页面状态保持
-                            st.session_state.current_page = "📸 素材生成"
+                            # 恢复页面状态，保持在当前页面
+                            st.session_state.current_page = current_page_before
                             st.error(f"❌ 增强训练失败: {str(err)}")
                             import traceback
                             with st.expander("🔍 错误详情"):
@@ -835,14 +835,14 @@ def show_generation_page():
                             st.warning("⚠️ 素材质量较低，建议开启增强训练")
                             # 使用 session_state 标志来控制增强训练，避免页面跳转
                             if st.button("🚀 开启增强训练", type="primary", use_container_width=True, key="enhance_btn_low"):
-                                # 设置标志，在页面渲染后执行
+                                # 设置标志，在页面渲染后执行，不改变当前页面
                                 st.session_state.should_run_enhancement = True
-                                st.session_state.current_page = "📸 素材生成"  # 确保页面状态
+                                # 不设置 current_page，保持当前页面状态
                         elif quality_score < 80:
                             st.info("⚡ 素材质量良好，可以进一步提升")
                             if st.button("🚀 开启增强训练", type="secondary", use_container_width=True, key="enhance_btn_good"):
                                 st.session_state.should_run_enhancement = True
-                                st.session_state.current_page = "📸 素材生成"  # 确保页面状态
+                                # 不设置 current_page，保持当前页面状态
                         else:
                             st.success("✅ 素材质量优秀")
                         
@@ -864,8 +864,47 @@ def show_generation_page():
                         cols[2].metric("达标率", f"{enhancement_summary.get('achievement_rate', 0):.1f}%")
                         st.caption(f"增强图片 {enhancement_summary.get('successful', 0)} / {enhancement_summary.get('total_images', 0)} 张")
                         
+                        # 显示增强训练柱状图
                         detail_results = enhancement_summary.get('results', [])
                         if detail_results:
+                            # 提取提升分数数据用于柱状图
+                            improvements = []
+                            image_names = []
+                            for item in detail_results:
+                                if item.get('success'):
+                                    improvements.append(item.get('improvement', 0))
+                                    img_path = item.get('original_path', '')
+                                    image_names.append(Path(img_path).stem if img_path else f"图片{len(improvements)}")
+                            
+                            if improvements:
+                                st.markdown("#### 📊 增强提升幅度柱状图")
+                                fig = go.Figure(data=[
+                                    go.Bar(
+                                        x=image_names,
+                                        y=improvements,
+                                        marker=dict(
+                                            color=improvements,
+                                            colorscale='Viridis',
+                                            showscale=True,
+                                            colorbar=dict(title="提升分数")
+                                        ),
+                                        text=[f"{imp:.2f}分" for imp in improvements],
+                                        textposition='outside'
+                                    )
+                                ])
+                                fig.update_layout(
+                                    title="各图片增强提升幅度",
+                                    xaxis_title="图片",
+                                    yaxis_title="提升分数",
+                                    font=dict(color='#e0e0e0', family='Rajdhani'),
+                                    paper_bgcolor='rgba(0, 0, 0, 0)',
+                                    plot_bgcolor='rgba(0, 0, 0, 0)',
+                                    height=400,
+                                    xaxis=dict(tickangle=-45)
+                                )
+                                st.plotly_chart(fig, use_container_width=True)
+                            
+                            # 显示详细结果表格
                             detail_df = []
                             for item in detail_results:
                                 if not item.get('success'):
@@ -878,6 +917,7 @@ def show_generation_page():
                                     "质量等级": item.get('quality_level', '')
                                 })
                             if detail_df:
+                                st.markdown("#### 📋 详细结果")
                                 st.dataframe(pd.DataFrame(detail_df), use_container_width=True)
             
             # 显示详细统计表格
