@@ -423,7 +423,7 @@ def main():
             st.session_state.current_page = "📸 素材生成"
         
         # 定义页面列表
-        page_options = ["📸 素材生成", "📊 质量分析", "🎯 智能筛选", "📈 数据报告"]
+        page_options = ["📸 素材生成", "📊 质量分析", "🎯 智能筛选", "📈 数据报告", "📚 训练技巧"]
         
         # 确保 current_page 在有效范围内
         if st.session_state.current_page not in page_options:
@@ -466,6 +466,7 @@ def main():
         2. **质量分析**: 8维度深度分析
         3. **智能筛选**: 自动筛选高质量素材
         4. **数据报告**: 查看详细分析报告
+        5. **训练技巧**: 训练效果分析与资源推荐
         """)
     
     # 主内容区 - 使用 session_state 中的页面状态，确保按钮点击后不会跳转
@@ -479,6 +480,8 @@ def main():
         show_filter_page()
     elif current_page == "📈 数据报告":
         show_report_page()
+    elif current_page == "📚 训练技巧":
+        show_training_tips_page()
     else:
         # 默认显示素材生成页面
         st.session_state.current_page = "📸 素材生成"
@@ -768,159 +771,23 @@ def show_generation_page():
                     else:
                         quality_score = 0
                     
-                    # 质量评估
-                    # 初始化增强训练状态
-                    if 'enhancement_in_progress' not in st.session_state:
-                        st.session_state.enhancement_in_progress = False
-                    
-                    def run_enhancement():
-                        """执行增强训练"""
-                        # 保存当前页面状态，防止页面跳转
-                        current_page_before = st.session_state.current_page
-                        
-                        # 添加调试信息
-                        st.info("🔍 开始执行增强训练...")
-                        
-                        if not ENHANCEMENT_AVAILABLE:
-                            st.warning("⚠️ 当前环境未提供增强训练模块")
-                            return
-                        
-                        # 检查是否有生成的图片
-                        if 'generated_images' not in st.session_state or not st.session_state.generated_images:
-                            st.warning("⚠️ 请先生成素材图片")
-                            return
-                        
-                        enhance_targets = st.session_state.generated_images[: min(8, len(st.session_state.generated_images))]
-                        if not enhance_targets:
-                            st.warning("⚠️ 暂无素材可用于增强训练，请先生成素材")
-                            return
-                        
-                        # 确保路径是字符串格式
-                        image_paths = []
-                        for img_path in enhance_targets:
-                            if isinstance(img_path, (str, Path)):
-                                image_paths.append(str(img_path))
-                            elif hasattr(img_path, 'path'):
-                                image_paths.append(str(img_path.path))
-                            else:
-                                continue
-                        
-                        if not image_paths:
-                            st.error("⚠️ 无法获取有效的图片路径")
-                            return
-                        
-                        try:
-                            st.session_state.enhancement_in_progress = True
-                            from agents.material_enhancement_trainer import MaterialEnhancementTrainer
-                            trainer = MaterialEnhancementTrainer()
-                            output_dir = Path("enhanced_materials") / datetime.now().strftime("%Y%m%d_%H%M%S")
-                            output_dir.mkdir(parents=True, exist_ok=True)
-                            
-                            with st.spinner("⚙️ 正在执行增强训练，请稍候..."):
-                                batch_result = trainer.enhance_batch_to_excellent(
-                                    image_paths,
-                                    str(output_dir),
-                                    target_improvement=4.0,
-                                    max_iterations=6
-                                )
-                            
-                            st.session_state.enhancement_result = batch_result
-                            st.session_state.enhancement_in_progress = False
-                            # 恢复页面状态，保持在当前页面
-                            st.session_state.current_page = current_page_before
-                            st.success(f"✅ 增强训练完成！平均提升 {batch_result.get('average_improvement', 0):.2f} 分")
-                        except Exception as err:
-                            st.session_state.enhancement_in_progress = False
-                            # 恢复页面状态，保持在当前页面
-                            st.session_state.current_page = current_page_before
-                            st.error(f"❌ 增强训练失败: {str(err)}")
-                            import traceback
-                            with st.expander("🔍 错误详情"):
-                                st.code(traceback.format_exc())
-
                     if quality_score > 0:
                         if quality_score < 60:
-                            st.warning("⚠️ 素材质量较低，建议开启增强训练")
-                            # 使用 session_state 标志来控制增强训练，避免页面跳转
-                            if st.button("🚀 开启增强训练", type="primary", use_container_width=True, key="enhance_btn_low"):
-                                # 直接执行增强训练
-                                run_enhancement()
+                            st.warning("⚠️ 素材质量较低，建议查看训练技巧")
+                            # 跳转到训练技巧页面
+                            if st.button("📚 训练技巧知识", type="primary", use_container_width=True, key="training_tips_btn_low"):
+                                st.session_state.current_page = "📚 训练技巧"
+                                st.rerun()
                         elif quality_score < 80:
                             st.info("⚡ 素材质量良好，可以进一步提升")
-                            if st.button("🚀 开启增强训练", type="secondary", use_container_width=True, key="enhance_btn_good"):
-                                # 直接执行增强训练
-                                run_enhancement()
+                            if st.button("📚 训练技巧知识", type="secondary", use_container_width=True, key="training_tips_btn_good"):
+                                st.session_state.current_page = "📚 训练技巧"
+                                st.rerun()
                         else:
                             st.success("✅ 素材质量优秀")
-                        
-                        # 显示增强训练进行中的状态
-                        if st.session_state.get('enhancement_in_progress', False):
-                            st.info("🔄 增强训练正在进行中，请稍候...")
-
-                    enhancement_summary = st.session_state.get('enhancement_result')
-                    if enhancement_summary:
-                        st.markdown("### 🧠 增强训练结果")
-                        cols = st.columns(3)
-                        cols[0].metric("平均提升幅度", f"{enhancement_summary.get('average_improvement', 0):.2f} 分")
-                        cols[1].metric("成功率", f"{enhancement_summary.get('success_rate', 0):.1f}%")
-                        cols[2].metric("达标率", f"{enhancement_summary.get('achievement_rate', 0):.1f}%")
-                        st.caption(f"增强图片 {enhancement_summary.get('successful', 0)} / {enhancement_summary.get('total_images', 0)} 张")
-                        
-                        # 显示增强训练柱状图
-                        detail_results = enhancement_summary.get('results', [])
-                        if detail_results:
-                            # 提取提升分数数据用于柱状图
-                            improvements = []
-                            image_names = []
-                            for item in detail_results:
-                                if item.get('success'):
-                                    improvements.append(item.get('improvement', 0))
-                                    img_path = item.get('original_path', '')
-                                    image_names.append(Path(img_path).stem if img_path else f"图片{len(improvements)}")
-                            
-                            if improvements:
-                                st.markdown("#### 📊 增强提升幅度柱状图")
-                                fig = go.Figure(data=[
-                                    go.Bar(
-                                        x=image_names,
-                                        y=improvements,
-                                        marker=dict(
-                                            color=improvements,
-                                            colorscale='Viridis',
-                                            showscale=True,
-                                            colorbar=dict(title="提升分数")
-                                        ),
-                                        text=[f"{imp:.2f}分" for imp in improvements],
-                                        textposition='outside'
-                                    )
-                                ])
-                                fig.update_layout(
-                                    title="各图片增强提升幅度",
-                                    xaxis_title="图片",
-                                    yaxis_title="提升分数",
-                                    font=dict(color='#e0e0e0', family='Rajdhani'),
-                                    paper_bgcolor='rgba(0, 0, 0, 0)',
-                                    plot_bgcolor='rgba(0, 0, 0, 0)',
-                                    height=400,
-                                    xaxis=dict(tickangle=-45)
-                                )
-                                st.plotly_chart(fig, use_container_width=True)
-                            
-                            # 显示详细结果表格
-                            detail_df = []
-                            for item in detail_results:
-                                if not item.get('success'):
-                                    continue
-                                detail_df.append({
-                                    "原图": Path(item.get('original_path', '')).name,
-                                    "提升分数": f"{item.get('improvement', 0):.2f}",
-                                    "最终得分": f"{item.get('final_score', 0):.2f}",
-                                    "迭代次数": item.get('iterations', 0),
-                                    "质量等级": item.get('quality_level', '')
-                                })
-                            if detail_df:
-                                st.markdown("#### 📋 详细结果")
-                                st.dataframe(pd.DataFrame(detail_df), use_container_width=True)
+                            if st.button("📚 训练技巧知识", type="secondary", use_container_width=True, key="training_tips_btn_excellent"):
+                                st.session_state.current_page = "📚 训练技巧"
+                                st.rerun()
             
             # 显示详细统计表格
             if st.session_state.confidence_stats:
@@ -1256,6 +1123,321 @@ def show_report_page():
     suggestions = generate_improvement_suggestions(results)
     for suggestion in suggestions:
         st.markdown(f"- {suggestion}")
+
+def show_training_tips_page():
+    """训练技巧知识页面"""
+    st.markdown("## 📚 训练技巧知识库")
+    st.markdown("基于图片素材的训练效果分析与优质资源推荐")
+    
+    # 获取当前生成的素材信息
+    generated_count = len(st.session_state.get('generated_images', []))
+    confidence_stats = st.session_state.get('confidence_stats', {})
+    
+    # 顶部统计卡片
+    st.markdown("### 📊 当前素材训练效果概览")
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.metric("已生成素材", f"{generated_count} 张", help="当前已生成的素材数量")
+    with col2:
+        total_detections = confidence_stats.get('_total_detections', 0)
+        st.metric("检测目标数", f"{total_detections} 个", help="所有素材中检测到的目标总数")
+    with col3:
+        all_confidences = confidence_stats.get('_all_confidences', [])
+        avg_conf = np.mean(all_confidences) * 100 if all_confidences else 0
+        st.metric("平均置信度", f"{avg_conf:.1f}%", help="所有检测目标的平均置信度")
+    with col4:
+        quality_score = st.session_state.get('analysis_results', {})
+        if quality_score:
+            overall = calculate_overall_score(quality_score) if isinstance(quality_score, dict) else 0
+        else:
+            overall = 0
+        st.metric("素材质量得分", f"{overall:.1f}", help="基于8维度分析的综合质量得分")
+    
+    st.markdown("---")
+    
+    # 训练效果分析表格
+    st.markdown("### 🎯 基于素材的训练效果分析表")
+    
+    # 构建训练效果数据
+    training_effect_data = []
+    
+    # 如果有生成的素材，显示素材训练效果
+    if generated_count > 0 and confidence_stats:
+        # 按类别统计训练效果
+        for class_name, stats in confidence_stats.items():
+            if class_name in ['_all_confidences', '_total_detections']:
+                continue
+            if isinstance(stats, dict):
+                training_effect_data.append({
+                    "类别": class_name,
+                    "检测数量": stats.get('count', 0),
+                    "平均置信度": f"{stats.get('avg_confidence', 0)*100:.2f}%",
+                    "最高置信度": f"{stats.get('max_confidence', 0)*100:.2f}%",
+                    "训练效果": "优秀" if stats.get('avg_confidence', 0) > 0.7 else "良好" if stats.get('avg_confidence', 0) > 0.5 else "一般",
+                    "建议": "可直接用于训练" if stats.get('avg_confidence', 0) > 0.7 else "建议增强后再训练" if stats.get('avg_confidence', 0) > 0.5 else "需要优化素材质量"
+                })
+    
+    # 如果没有数据，显示示例数据
+    if not training_effect_data:
+        training_effect_data = [
+            {"类别": "person", "检测数量": 0, "平均置信度": "0.00%", "最高置信度": "0.00%", "训练效果": "待生成", "建议": "请先生成素材"},
+            {"类别": "car", "检测数量": 0, "平均置信度": "0.00%", "最高置信度": "0.00%", "训练效果": "待生成", "建议": "请先生成素材"},
+            {"类别": "truck", "检测数量": 0, "平均置信度": "0.00%", "最高置信度": "0.00%", "训练效果": "待生成", "建议": "请先生成素材"},
+        ]
+    
+    # 显示训练效果表格
+    effect_df = pd.DataFrame(training_effect_data)
+    st.dataframe(
+        effect_df,
+        use_container_width=True,
+        hide_index=True
+    )
+    
+    st.markdown("---")
+    
+    # 优质素材资源推荐
+    st.markdown("### 🔗 优质素材资源推荐")
+    st.markdown("点击下方链接访问优质数据集和训练资源")
+    
+    # 资源分类
+    tab1, tab2, tab3, tab4 = st.tabs(["📦 GitHub资源", "🌐 数据集网站", "📚 训练教程", "🛠️ 工具推荐"])
+    
+    with tab1:
+        st.markdown("#### GitHub优质项目")
+        github_resources = [
+            {
+                "项目名称": "YOLOv8官方仓库",
+                "描述": "Ultralytics YOLOv8 - 最新的目标检测模型",
+                "链接": "https://github.com/ultralytics/ultralytics",
+                "⭐": "50k+",
+                "标签": "目标检测"
+            },
+            {
+                "项目名称": "VisDrone数据集",
+                "描述": "无人机视觉数据集，包含大量标注数据",
+                "链接": "https://github.com/VisDrone/VisDrone-Dataset",
+                "⭐": "2.5k+",
+                "标签": "数据集"
+            },
+            {
+                "项目名称": "Roboflow Universe",
+                "描述": "大规模开源数据集集合",
+                "链接": "https://github.com/roboflow/roboflow",
+                "⭐": "5k+",
+                "标签": "数据集"
+            },
+            {
+                "项目名称": "LabelImg",
+                "描述": "图像标注工具，支持YOLO格式",
+                "链接": "https://github.com/HumanSignal/labelImg",
+                "⭐": "20k+",
+                "标签": "工具"
+            },
+            {
+                "项目名称": "Albumentations",
+                "描述": "强大的图像增强库",
+                "链接": "https://github.com/albumentations-team/albumentations",
+                "⭐": "13k+",
+                "标签": "数据增强"
+            },
+        ]
+        
+        for resource in github_resources:
+            with st.container():
+                col1, col2 = st.columns([3, 1])
+                with col1:
+                    st.markdown(f"**{resource['项目名称']}**")
+                    st.caption(f"{resource['描述']} | ⭐ {resource['⭐']} | 标签: {resource['标签']}")
+                with col2:
+                    st.markdown(f"[🔗 访问]({resource['链接']})")
+                st.markdown("---")
+    
+    with tab2:
+        st.markdown("#### 专业数据集网站")
+        dataset_sites = [
+            {
+                "网站名称": "Kaggle Datasets",
+                "描述": "全球最大的数据科学社区，包含大量公开数据集",
+                "链接": "https://www.kaggle.com/datasets",
+                "类型": "综合数据集"
+            },
+            {
+                "网站名称": "Roboflow Universe",
+                "描述": "计算机视觉数据集平台，支持在线标注和导出",
+                "链接": "https://universe.roboflow.com",
+                "类型": "视觉数据集"
+            },
+            {
+                "网站名称": "Open Images Dataset",
+                "描述": "Google开源的大规模图像数据集",
+                "链接": "https://storage.googleapis.com/openimages/web/index.html",
+                "类型": "图像数据集"
+            },
+            {
+                "网站名称": "COCO Dataset",
+                "描述": "Microsoft Common Objects in Context数据集",
+                "链接": "https://cocodataset.org",
+                "类型": "目标检测"
+            },
+            {
+                "网站名称": "ImageNet",
+                "描述": "大规模图像分类数据集",
+                "链接": "https://www.image-net.org",
+                "类型": "图像分类"
+            },
+        ]
+        
+        for site in dataset_sites:
+            with st.container():
+                col1, col2 = st.columns([3, 1])
+                with col1:
+                    st.markdown(f"**{site['网站名称']}**")
+                    st.caption(f"{site['描述']} | 类型: {site['类型']}")
+                with col2:
+                    st.markdown(f"[🔗 访问]({site['链接']})")
+                st.markdown("---")
+    
+    with tab3:
+        st.markdown("#### 训练教程与文档")
+        tutorials = [
+            {
+                "标题": "YOLOv8训练完整指南",
+                "描述": "从数据准备到模型部署的完整流程",
+                "链接": "https://docs.ultralytics.com/modes/train/",
+                "难度": "中级"
+            },
+            {
+                "标题": "PyTorch官方教程",
+                "描述": "深度学习框架PyTorch的官方文档和教程",
+                "链接": "https://pytorch.org/tutorials/",
+                "难度": "初级"
+            },
+            {
+                "标题": "计算机视觉最佳实践",
+                "描述": "CV领域的最佳实践和技巧分享",
+                "链接": "https://github.com/ultralytics/yolov5/wiki",
+                "难度": "高级"
+            },
+            {
+                "标题": "数据增强技巧",
+                "描述": "提升模型性能的数据增强方法",
+                "链接": "https://albumentations.ai/docs/",
+                "难度": "中级"
+            },
+        ]
+        
+        for tutorial in tutorials:
+            with st.container():
+                col1, col2 = st.columns([3, 1])
+                with col1:
+                    st.markdown(f"**{tutorial['标题']}**")
+                    st.caption(f"{tutorial['描述']} | 难度: {tutorial['难度']}")
+                with col2:
+                    st.markdown(f"[📖 阅读]({tutorial['链接']})")
+                st.markdown("---")
+    
+    with tab4:
+        st.markdown("#### 实用工具推荐")
+        tools = [
+            {
+                "工具名称": "Label Studio",
+                "描述": "开源数据标注平台，支持多种标注任务",
+                "链接": "https://labelstud.io",
+                "类别": "标注工具"
+            },
+            {
+                "工具名称": "Weights & Biases",
+                "描述": "机器学习实验跟踪和可视化平台",
+                "链接": "https://wandb.ai",
+                "类别": "实验跟踪"
+            },
+            {
+                "工具名称": "TensorBoard",
+                "描述": "TensorFlow的可视化工具",
+                "链接": "https://www.tensorflow.org/tensorboard",
+                "类别": "可视化"
+            },
+            {
+                "工具名称": "MLflow",
+                "描述": "机器学习生命周期管理平台",
+                "链接": "https://mlflow.org",
+                "类别": "MLOps"
+            },
+        ]
+        
+        for tool in tools:
+            with st.container():
+                col1, col2 = st.columns([3, 1])
+                with col1:
+                    st.markdown(f"**{tool['工具名称']}**")
+                    st.caption(f"{tool['描述']} | 类别: {tool['类别']}")
+                with col2:
+                    st.markdown(f"[🔧 使用]({tool['链接']})")
+                st.markdown("---")
+    
+    st.markdown("---")
+    
+    # 训练技巧建议
+    st.markdown("### 💡 训练技巧与建议")
+    
+    tips_col1, tips_col2 = st.columns(2)
+    
+    with tips_col1:
+        st.markdown("#### 🎯 数据准备技巧")
+        st.markdown("""
+        - **数据多样性**: 确保数据集包含不同角度、光照、天气条件
+        - **标注质量**: 使用精确的边界框标注，避免漏标和误标
+        - **数据平衡**: 保持各类别样本数量相对均衡
+        - **数据增强**: 合理使用旋转、缩放、色彩变换等增强技术
+        - **验证集划分**: 建议使用80/20或70/30的训练/验证集比例
+        """)
+    
+    with tips_col2:
+        st.markdown("#### ⚙️ 模型训练技巧")
+        st.markdown("""
+        - **学习率调整**: 使用学习率调度器，如CosineAnnealingLR
+        - **批次大小**: 根据GPU内存选择合适的批次大小
+        - **早停机制**: 监控验证集指标，防止过拟合
+        - **模型集成**: 训练多个模型并集成，提升性能
+        - **迁移学习**: 使用预训练模型作为起点，加速收敛
+        """)
+    
+    # 快速链接卡片
+    st.markdown("### 🚀 快速访问")
+    quick_links_col1, quick_links_col2, quick_links_col3, quick_links_col4 = st.columns(4)
+    
+    with quick_links_col1:
+        st.markdown("""
+        <div style="padding: 1rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 10px; text-align: center;">
+            <h4 style="color: white; margin: 0;">📦 GitHub</h4>
+            <a href="https://github.com" style="color: white; text-decoration: none;">访问GitHub</a>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with quick_links_col2:
+        st.markdown("""
+        <div style="padding: 1rem; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); border-radius: 10px; text-align: center;">
+            <h4 style="color: white; margin: 0;">📊 Kaggle</h4>
+            <a href="https://www.kaggle.com" style="color: white; text-decoration: none;">访问Kaggle</a>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with quick_links_col3:
+        st.markdown("""
+        <div style="padding: 1rem; background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); border-radius: 10px; text-align: center;">
+            <h4 style="color: white; margin: 0;">🔬 Papers</h4>
+            <a href="https://paperswithcode.com" style="color: white; text-decoration: none;">访问Papers</a>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with quick_links_col4:
+        st.markdown("""
+        <div style="padding: 1rem; background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); border-radius: 10px; text-align: center;">
+            <h4 style="color: white; margin: 0;">📚 Docs</h4>
+            <a href="https://docs.ultralytics.com" style="color: white; text-decoration: none;">访问文档</a>
+        </div>
+        """, unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
