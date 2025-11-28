@@ -778,13 +778,21 @@ def show_generation_page():
                         # 保存当前页面状态，防止页面跳转
                         current_page_before = st.session_state.current_page
                         
+                        # 添加调试信息
+                        st.info("🔍 开始执行增强训练...")
+                        
                         if not ENHANCEMENT_AVAILABLE:
                             st.warning("⚠️ 当前环境未提供增强训练模块")
                             return
                         
+                        # 检查是否有生成的图片
+                        if 'generated_images' not in st.session_state or not st.session_state.generated_images:
+                            st.warning("⚠️ 请先生成素材图片")
+                            return
+                        
                         enhance_targets = st.session_state.generated_images[: min(8, len(st.session_state.generated_images))]
                         if not enhance_targets:
-                            st.info("暂无素材可用于增强训练")
+                            st.warning("⚠️ 暂无素材可用于增强训练，请先生成素材")
                             return
                         
                         # 确保路径是字符串格式
@@ -830,26 +838,37 @@ def show_generation_page():
                             with st.expander("🔍 错误详情"):
                                 st.code(traceback.format_exc())
 
+                    # 先检查是否需要执行增强训练（在按钮定义之前检查，确保能立即执行）
+                    if st.session_state.get('should_run_enhancement', False):
+                        # 立即重置标志，避免重复执行
+                        st.session_state.should_run_enhancement = False
+                        # 执行增强训练
+                        run_enhancement()
+                    
                     if quality_score > 0:
                         if quality_score < 60:
                             st.warning("⚠️ 素材质量较低，建议开启增强训练")
                             # 使用 session_state 标志来控制增强训练，避免页面跳转
                             if st.button("🚀 开启增强训练", type="primary", use_container_width=True, key="enhance_btn_low"):
-                                # 设置标志，在页面渲染后执行，不改变当前页面
+                                # 保存当前页面状态
+                                current_page_save = st.session_state.current_page
+                                # 设置标志，在页面渲染后执行
                                 st.session_state.should_run_enhancement = True
-                                # 不设置 current_page，保持当前页面状态
+                                # 确保页面状态保持
+                                st.session_state.current_page = current_page_save
+                                st.rerun()  # 立即重新运行以执行增强训练
                         elif quality_score < 80:
                             st.info("⚡ 素材质量良好，可以进一步提升")
                             if st.button("🚀 开启增强训练", type="secondary", use_container_width=True, key="enhance_btn_good"):
+                                # 保存当前页面状态
+                                current_page_save = st.session_state.current_page
+                                # 设置标志，在页面渲染后执行
                                 st.session_state.should_run_enhancement = True
-                                # 不设置 current_page，保持当前页面状态
+                                # 确保页面状态保持
+                                st.session_state.current_page = current_page_save
+                                st.rerun()  # 立即重新运行以执行增强训练
                         else:
                             st.success("✅ 素材质量优秀")
-                        
-                        # 检查是否需要执行增强训练（在按钮点击后的下一次运行中）
-                        if st.session_state.get('should_run_enhancement', False):
-                            st.session_state.should_run_enhancement = False  # 重置标志
-                            run_enhancement()
                         
                         # 显示增强训练进行中的状态
                         if st.session_state.get('enhancement_in_progress', False):
