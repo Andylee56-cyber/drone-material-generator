@@ -1393,39 +1393,118 @@ def show_training_tips_page():
         - **迁移学习**: 使用预训练模型作为起点，加速收敛
         """)
     
-    # 快速链接卡片
-    st.markdown("### 🚀 快速访问")
-    quick_links_col1, quick_links_col2, quick_links_col3, quick_links_col4 = st.columns(4)
+    # 快速链接卡片 - 扩展版
+    st.markdown("### 🚀 快速访问学习资源")
     
-    with quick_links_col1:
+    # 第一行卡片
+    quick_links_row1_col1, quick_links_row1_col2, quick_links_row1_col3, quick_links_row1_col4 = st.columns(4)
+    
+    with quick_links_row1_col1:
         st.markdown("""
-        <div style="padding: 1rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 10px; text-align: center;">
-            <h4 style="color: white; margin: 0;">📦 GitHub</h4>
-            <a href="https://github.com" style="color: white; text-decoration: none;">访问GitHub</a>
+        <div style="padding: 1.2rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
+            <h4 style="color: white; margin: 0 0 0.5rem 0; font-size: 1.2rem;">📦 GitHub</h4>
+            <p style="color: rgba(255,255,255,0.9); margin: 0.3rem 0; font-size: 0.85rem;">代码仓库与项目</p>
+            <div style="margin-top: 0.8rem;">
+                <a href="https://github.com/ultralytics/ultralytics" target="_blank" style="display: block; color: white; text-decoration: none; margin: 0.3rem 0; padding: 0.3rem; background: rgba(255,255,255,0.2); border-radius: 5px;">YOLOv8官方</a>
+                <a href="https://github.com/roboflow/roboflow" target="_blank" style="display: block; color: white; text-decoration: none; margin: 0.3rem 0; padding: 0.3rem; background: rgba(255,255,255,0.2); border-radius: 5px;">Roboflow</a>
+                <a href="https://github.com/albumentations-team/albumentations" target="_blank" style="display: block; color: white; text-decoration: none; margin: 0.3rem 0; padding: 0.3rem; background: rgba(255,255,255,0.2); border-radius: 5px;">数据增强库</a>
+            </div>
         </div>
         """, unsafe_allow_html=True)
     
-    with quick_links_col2:
+    with quick_links_row1_col2:
         st.markdown("""
-        <div style="padding: 1rem; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); border-radius: 10px; text-align: center;">
-            <h4 style="color: white; margin: 0;">📊 Kaggle</h4>
-            <a href="https://www.kaggle.com" style="color: white; text-decoration: none;">访问Kaggle</a>
+        <div style="padding: 1.2rem; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); border-radius: 12px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
+            <h4 style="color: white; margin: 0 0 0.5rem 0; font-size: 1.2rem;">📊 Kaggle</h4>
+            <p style="color: rgba(255,255,255,0.9); margin: 0.3rem 0; font-size: 0.85rem;">数据集与竞赛</p>
+            <div style="margin-top: 0.8rem;">
+                <a href="https://www.kaggle.com/datasets" target="_blank" style="display: block; color: white; text-decoration: none; margin: 0.3rem 0; padding: 0.3rem; background: rgba(255,255,255,0.2); border-radius: 5px;">数据集库</a>
+                <a href="https://www.kaggle.com/learn" target="_blank" style="display: block; color: white; text-decoration: none; margin: 0.3rem 0; padding: 0.3rem; background: rgba(255,255,255,0.2); border-radius: 5px;">免费课程</a>
+                <a href="https://www.kaggle.com/competitions" target="_blank" style="display: block; color: white; text-decoration: none; margin: 0.3rem 0; padding: 0.3rem; background: rgba(255,255,255,0.2); border-radius: 5px;">竞赛平台</a>
+            </div>
         </div>
         """, unsafe_allow_html=True)
     
-    with quick_links_col3:
+    with quick_links_row1_col3:
         st.markdown("""
-        <div style="padding: 1rem; background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); border-radius: 10px; text-align: center;">
-            <h4 style="color: white; margin: 0;">🔬 Papers</h4>
-            <a href="https://paperswithcode.com" style="color: white; text-decoration: none;">访问Papers</a>
+        <div style="padding: 1.2rem; background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); border-radius: 12px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
+            <h4 style="color: white; margin: 0 0 0.5rem 0; font-size: 1.2rem;">🔬 Papers</h4>
+            <p style="color: rgba(255,255,255,0.9); margin: 0.3rem 0; font-size: 0.85rem;">论文与代码</p>
+            <div style="margin-top: 0.8rem;">
+                <a href="https://paperswithcode.com" target="_blank" style="display: block; color: white; text-decoration: none; margin: 0.3rem 0; padding: 0.3rem; background: rgba(255,255,255,0.2); border-radius: 5px;">Papers with Code</a>
+                <a href="https://arxiv.org/list/cs.CV/recent" target="_blank" style="display: block; color: white; text-decoration: none; margin: 0.3rem 0; padding: 0.3rem; background: rgba(255,255,255,0.2); border-radius: 5px;">CV最新论文</a>
+                <a href="https://paperswithcode.com/sota" target="_blank" style="display: block; color: white; text-decoration: none; margin: 0.3rem 0; padding: 0.3rem; background: rgba(255,255,255,0.2); border-radius: 5px;">SOTA排行榜</a>
+            </div>
         </div>
         """, unsafe_allow_html=True)
     
-    with quick_links_col4:
+    with quick_links_row1_col4:
         st.markdown("""
-        <div style="padding: 1rem; background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); border-radius: 10px; text-align: center;">
-            <h4 style="color: white; margin: 0;">📚 Docs</h4>
-            <a href="https://docs.ultralytics.com" style="color: white; text-decoration: none;">访问文档</a>
+        <div style="padding: 1.2rem; background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); border-radius: 12px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
+            <h4 style="color: white; margin: 0 0 0.5rem 0; font-size: 1.2rem;">📚 Docs</h4>
+            <p style="color: rgba(255,255,255,0.9); margin: 0.3rem 0; font-size: 0.85rem;">官方文档</p>
+            <div style="margin-top: 0.8rem;">
+                <a href="https://docs.ultralytics.com" target="_blank" style="display: block; color: white; text-decoration: none; margin: 0.3rem 0; padding: 0.3rem; background: rgba(255,255,255,0.2); border-radius: 5px;">YOLOv8文档</a>
+                <a href="https://pytorch.org/docs/stable/index.html" target="_blank" style="display: block; color: white; text-decoration: none; margin: 0.3rem 0; padding: 0.3rem; background: rgba(255,255,255,0.2); border-radius: 5px;">PyTorch文档</a>
+                <a href="https://albumentations.ai/docs/" target="_blank" style="display: block; color: white; text-decoration: none; margin: 0.3rem 0; padding: 0.3rem; background: rgba(255,255,255,0.2); border-radius: 5px;">增强库文档</a>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    # 第二行卡片 - 添加更多资源
+    quick_links_row2_col1, quick_links_row2_col2, quick_links_row2_col3, quick_links_row2_col4 = st.columns(4)
+    
+    with quick_links_row2_col1:
+        st.markdown("""
+        <div style="padding: 1.2rem; background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); border-radius: 12px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
+            <h4 style="color: white; margin: 0 0 0.5rem 0; font-size: 1.2rem;">🎓 教程</h4>
+            <p style="color: rgba(255,255,255,0.9); margin: 0.3rem 0; font-size: 0.85rem;">学习教程</p>
+            <div style="margin-top: 0.8rem;">
+                <a href="https://docs.ultralytics.com/modes/train/" target="_blank" style="display: block; color: white; text-decoration: none; margin: 0.3rem 0; padding: 0.3rem; background: rgba(255,255,255,0.2); border-radius: 5px;">YOLOv8训练</a>
+                <a href="https://pytorch.org/tutorials/" target="_blank" style="display: block; color: white; text-decoration: none; margin: 0.3rem 0; padding: 0.3rem; background: rgba(255,255,255,0.2); border-radius: 5px;">PyTorch教程</a>
+                <a href="https://www.tensorflow.org/tutorials" target="_blank" style="display: block; color: white; text-decoration: none; margin: 0.3rem 0; padding: 0.3rem; background: rgba(255,255,255,0.2); border-radius: 5px;">TensorFlow教程</a>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with quick_links_row2_col2:
+        st.markdown("""
+        <div style="padding: 1.2rem; background: linear-gradient(135deg, #30cfd0 0%, #330867 100%); border-radius: 12px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
+            <h4 style="color: white; margin: 0 0 0.5rem 0; font-size: 1.2rem;">📦 数据集</h4>
+            <p style="color: rgba(255,255,255,0.9); margin: 0.3rem 0; font-size: 0.85rem;">公开数据集</p>
+            <div style="margin-top: 0.8rem;">
+                <a href="https://cocodataset.org" target="_blank" style="display: block; color: white; text-decoration: none; margin: 0.3rem 0; padding: 0.3rem; background: rgba(255,255,255,0.2); border-radius: 5px;">COCO数据集</a>
+                <a href="https://universe.roboflow.com" target="_blank" style="display: block; color: white; text-decoration: none; margin: 0.3rem 0; padding: 0.3rem; background: rgba(255,255,255,0.2); border-radius: 5px;">Roboflow Universe</a>
+                <a href="https://www.image-net.org" target="_blank" style="display: block; color: white; text-decoration: none; margin: 0.3rem 0; padding: 0.3rem; background: rgba(255,255,255,0.2); border-radius: 5px;">ImageNet</a>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with quick_links_row2_col3:
+        st.markdown("""
+        <div style="padding: 1.2rem; background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%); border-radius: 12px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
+            <h4 style="color: #333; margin: 0 0 0.5rem 0; font-size: 1.2rem;">🛠️ 工具</h4>
+            <p style="color: rgba(0,0,0,0.7); margin: 0.3rem 0; font-size: 0.85rem;">实用工具</p>
+            <div style="margin-top: 0.8rem;">
+                <a href="https://labelstud.io" target="_blank" style="display: block; color: #333; text-decoration: none; margin: 0.3rem 0; padding: 0.3rem; background: rgba(0,0,0,0.1); border-radius: 5px;">Label Studio</a>
+                <a href="https://wandb.ai" target="_blank" style="display: block; color: #333; text-decoration: none; margin: 0.3rem 0; padding: 0.3rem; background: rgba(0,0,0,0.1); border-radius: 5px;">Weights & Biases</a>
+                <a href="https://mlflow.org" target="_blank" style="display: block; color: #333; text-decoration: none; margin: 0.3rem 0; padding: 0.3rem; background: rgba(0,0,0,0.1); border-radius: 5px;">MLflow</a>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with quick_links_row2_col4:
+        st.markdown("""
+        <div style="padding: 1.2rem; background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%); border-radius: 12px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
+            <h4 style="color: #333; margin: 0 0 0.5rem 0; font-size: 1.2rem;">💡 社区</h4>
+            <p style="color: rgba(0,0,0,0.7); margin: 0.3rem 0; font-size: 0.85rem;">学习社区</p>
+            <div style="margin-top: 0.8rem;">
+                <a href="https://discuss.pytorch.org" target="_blank" style="display: block; color: #333; text-decoration: none; margin: 0.3rem 0; padding: 0.3rem; background: rgba(0,0,0,0.1); border-radius: 5px;">PyTorch论坛</a>
+                <a href="https://stackoverflow.com/questions/tagged/pytorch" target="_blank" style="display: block; color: #333; text-decoration: none; margin: 0.3rem 0; padding: 0.3rem; background: rgba(0,0,0,0.1); border-radius: 5px;">Stack Overflow</a>
+                <a href="https://www.reddit.com/r/MachineLearning" target="_blank" style="display: block; color: #333; text-decoration: none; margin: 0.3rem 0; padding: 0.3rem; background: rgba(0,0,0,0.1); border-radius: 5px;">Reddit ML</a>
+            </div>
         </div>
         """, unsafe_allow_html=True)
 
