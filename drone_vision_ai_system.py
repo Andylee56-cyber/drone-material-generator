@@ -773,21 +773,11 @@ def show_generation_page():
                     
                     if quality_score > 0:
                         if quality_score < 60:
-                            st.warning("⚠️ 素材质量较低，建议查看训练技巧")
-                            # 跳转到训练技巧页面
-                            if st.button("📚 训练技巧知识", type="primary", use_container_width=True, key="training_tips_btn_low"):
-                                st.session_state.current_page = "📚 训练技巧"
-                                st.rerun()
+                            st.warning("⚠️ 素材质量较低，建议查看训练技巧（可在左侧控制面板切换）")
                         elif quality_score < 80:
-                            st.info("⚡ 素材质量良好，可以进一步提升")
-                            if st.button("📚 训练技巧知识", type="secondary", use_container_width=True, key="training_tips_btn_good"):
-                                st.session_state.current_page = "📚 训练技巧"
-                                st.rerun()
+                            st.info("⚡ 素材质量良好，可以进一步提升（可在左侧控制面板查看训练技巧）")
                         else:
-                            st.success("✅ 素材质量优秀")
-                            if st.button("📚 训练技巧知识", type="secondary", use_container_width=True, key="training_tips_btn_excellent"):
-                                st.session_state.current_page = "📚 训练技巧"
-                                st.rerun()
+                            st.success("✅ 素材质量优秀（可在左侧控制面板查看训练技巧）")
             
             # 显示详细统计表格
             if st.session_state.confidence_stats:
